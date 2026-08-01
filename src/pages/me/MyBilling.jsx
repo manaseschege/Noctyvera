@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, App, Button, Col, Row, Table, Tag } from 'antd';
-import { CheckCircleFilled, ClockCircleOutlined, UnlockOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, UnlockOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { billingApi } from '../../api';
 import { formatDisplay } from '../../api/currency';
@@ -127,43 +127,15 @@ export default function MyBilling() {
                 style={{ padding: '26px 12px' }}
               />
             ) : (
-              <Table
-                rowKey="userId"
-                size="middle"
-                dataSource={unlocked}
-                pagination={{ pageSize: 6, hideOnSinglePage: true }}
-                columns={[
-                  {
-                    title: t('billing.member'),
-                    dataIndex: 'username',
-                    render: (u, r) => (
-                      <Button type="link" style={{ padding: 0 }} onClick={() => navigate(`/m/${r.userId}`)}>
-                        @{u}
-                      </Button>
-                    ),
-                  },
-                  {
-                    title: t('billing.accessUntil'),
-                    dataIndex: 'expiresAt',
-                    width: 170,
-                    render: (d) => (
-                      <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                        {d ? dayjs(d).format('D MMM YYYY') : '—'}
-                      </span>
-                    ),
-                  },
-                  {
-                    title: '',
-                    width: 90,
-                    align: 'right',
-                    render: (_, r) => (
-                      <Tag color="green" icon={<CheckCircleFilled />}>
-                        {dayjs(r.expiresAt).isAfter(dayjs()) ? t('common.open') : t('billing.expired')}
-                      </Tag>
-                    ),
-                  },
-                ]}
-              />
+              <div className="owned-summary">
+                <div className="owned-count">{ownedCount}</div>
+                <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.7 }}>
+                  {t('billing.ownedBody')}
+                </div>
+                <Button style={{ marginTop: 14 }} onClick={() => navigate('/discover')}>
+                  {t('nav.browseMembers')}
+                </Button>
+              </div>
             )}
           </div>
         </Col>
@@ -225,7 +197,7 @@ export default function MyBilling() {
               align: 'right',
               render: (v, r) => (
                 <span style={{ fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                  {formatDisplay(v, r.currency ?? currency, lang)}
+                  {formatDisplay(v, r.currency, lang)}
                 </span>
               ),
             },

@@ -461,6 +461,7 @@ export const en = {
     singleUnlock: 'Single profile unlock',
     choosePlan: 'Choose a plan',
     unlockedTitle: 'Profiles you’ve unlocked',
+    ownedBody: 'Videos, broadcasts and calls you have paid for. Each one stays yours.',
     nothingUnlocked: 'Nothing unlocked yet',
     nothingUnlockedBody: 'Unlock a profile and it stays open for the full window.',
     accessUntil: 'Access until',

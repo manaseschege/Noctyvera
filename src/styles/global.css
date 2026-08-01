@@ -1521,3 +1521,18 @@ body::before {
   color: var(--gold-bright);
   letter-spacing: 0.1em;
 }
+
+/* Per-item access has no list to show — the server does not enumerate every
+   item a viewer owns on each page load — so the count is the summary. */
+.owned-summary {
+  text-align: center;
+  padding: 18px 12px;
+}
+.owned-count {
+  font-size: 44px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--gold-bright);
+  line-height: 1;
+  margin-bottom: 10px;
+}

@@ -387,7 +387,8 @@ export default function MemberProfile() {
             <p className="muted" style={{ fontSize: 13.5, maxWidth: 440, margin: '0 auto 18px' }}>
               {t('profile.behindCurtainBody', { username: profile.username })}
             </p>
-            <Button type="primary" size="large" onClick={wantAccess}>
+            <Button type="primary" size="large" disabled={!cheapest}
+                    onClick={() => cheapest && wantItem(cheapest)}>
               {t('profile.seeOptions')}
             </Button>
           </div>

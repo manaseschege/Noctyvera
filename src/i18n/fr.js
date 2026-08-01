@@ -461,6 +461,7 @@ export const fr = {
     singleUnlock: 'Déblocage d’un profil',
     choosePlan: 'Choisir une formule',
     unlockedTitle: 'Profils que vous avez débloqués',
+    ownedBody: 'Vidéos, directs et appels que vous avez payés. Chacun reste à vous.',
     nothingUnlocked: 'Rien de débloqué pour l’instant',
     nothingUnlockedBody: 'Débloquez un profil et il reste ouvert pendant toute la période.',
     accessUntil: 'Accès jusqu’au',
