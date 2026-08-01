@@ -10,7 +10,7 @@ import {
   VideoCameraFilled,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { billingApi, membersApi } from '../../api';
+import { membersApi } from '../../api';
 
 import { useAuth } from '../../store/auth';
 import CheckoutModal from '../../components/CheckoutModal';
@@ -53,7 +53,7 @@ export default function MemberProfile() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
-  const [checkout, setCheckout] = useState(false);
+  const [checkout, setCheckout] = useState(null);
   const [lightbox, setLightbox] = useState(null);
   const [gate, setGate] = useState(null);
 
@@ -86,7 +86,9 @@ export default function MemberProfile() {
   }, [load]);
 
   const isSelf = user?.id === userId;
-  const unlocked = isSelf || billingApi.isUnlocked(entitlements, userId);
+  // Per item now: there is no "unlocked this creator" state, only tiles that
+  // are open and tiles that are not.
+  const unlocked = isSelf || media.every((m) => !m.locked);
   const lockedItems = media.filter((m) => m.locked);
   const liveNow = sessions.find((s) => s.status === 'LIVE');
   const coverId = media.find((m) => !m.locked && m.type === 'PHOTO')?.id ?? null;
@@ -95,17 +97,33 @@ export default function MemberProfile() {
     .filter((m) => (filter === 'all' ? true : m.type === filter))
     .map(toTile);
 
-  const wantAccess = () => {
+  /** Opens checkout for one specific tile. */
+  const wantItem = (tile) => {
     if (!user) {
       navigate('/join', { state: { from: `/m/${userId}` } });
       return;
     }
-    setCheckout(true);
+    const item = media.find((m) => m.id === tile.id);
+    if (!item) return;
+    setCheckout({
+      id: item.id,
+      kind: 'media',
+      title: item.caption || (item.type === 'VIDEO' ? t('common.clips') : t('common.photos')),
+      priceMinor: item.priceMinor,
+      priceDisplay: item.priceDisplay,
+      currency: item.currency,
+      creatorName: profile?.username,
+    });
   };
+
+  /** The cheapest locked thing, for the sidebar call to action. */
+  const cheapest = media
+    .filter((m) => m.locked && m.priceMinor != null)
+    .sort((a, b) => a.priceMinor - b.priceMinor)[0];
 
   const openTile = (tile) => {
     if (tile.unlocked) setLightbox(tile);
-    else wantAccess();
+    else wantItem(tile);
   };
 
   if (loading && !profile) {
@@ -242,11 +260,9 @@ export default function MemberProfile() {
                 <UnlockOutlined style={{ fontSize: 22, color: 'var(--success)' }} />
                 <h3 className="serif" style={{ fontSize: 22, margin: '12px 0 8px' }}>{t('profile.fullAccess')}</h3>
                 <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.7, margin: 0 }}>
-                  {entitlements?.subscribed
+                  {entitlements?.onTrial
                     ? t('profile.fullAccessSub')
-                    : t('profile.unlockedUntil', {
-                        date: dayjs(entitlements?.unlockedMembers?.find((m) => m.userId === userId)?.expiresAt).format('D MMM YYYY'),
-                      })}
+                    : t('profile.everythingOpen')}
                 </p>
               </>
             ) : (
@@ -274,18 +290,21 @@ export default function MemberProfile() {
 
                 {/* Her price, not a platform-wide one. Shown before the
                     button so nobody has to open a modal to find out. */}
-                {profile.unlockPriceDisplay && (
+                {cheapest && (
                   <div className="unlock-price">
                     <span className="unlock-price-amount">
-                      {formatDisplay(profile.unlockPriceDisplay, profile.currency, lang)}
+                      {t('profile.fromPrice', {
+                        price: formatDisplay(cheapest.priceDisplay, cheapest.currency, lang),
+                      })}
                     </span>
                     <span className="unlock-price-note">
-                      {t('profile.oneTimeForEverything', { username: profile.username })}
+                      {t('profile.pricedPerItem')}
                     </span>
                   </div>
                 )}
 
-                <Button block size="large" type="primary" icon={<UnlockOutlined />} onClick={wantAccess}>
+                <Button block size="large" type="primary" icon={<UnlockOutlined />}
+                        onClick={() => cheapest && wantItem(cheapest)} disabled={!cheapest}>
                   {t('profile.getAccess')}
                 </Button>
                 <div className="faint" style={{ fontSize: 11.5, marginTop: 10, textAlign: 'center' }}>
@@ -397,9 +416,9 @@ export default function MemberProfile() {
       </Modal>
 
       <CheckoutModal
-        open={checkout}
-        member={profile}
-        onClose={() => setCheckout(false)}
+        open={Boolean(checkout)}
+        item={checkout}
+        onClose={() => setCheckout(null)}
         onSettled={async () => {
           await loadEntitlements();
           load();

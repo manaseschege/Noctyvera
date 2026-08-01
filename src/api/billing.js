@@ -4,25 +4,23 @@ export { formatMinor, formatDisplay, formatAmount, currencyCode } from './curren
 /**
  * Money, in both directions.
  *
- * ── Viewers pay creators ───────────────────────────────────────
- *   GET  /billing/plans              prices, currency, the default unlock price
- *   POST /billing/unlocks/{userId}   unlock one creator, at *her* price
- *   POST /billing/subscriptions      { planCode } — unlocks everybody
- *   GET  /billing/entitlements       what the caller currently has access to
+ * ── Viewers pay creators, per item ─────────────────────────────
+ *   POST /billing/media/{mediaId}    buy one photo or video
+ *   POST /billing/live/{sessionId}   buy entry to one broadcast
+ *   GET  /billing/entitlements       trial, credit balance, items owned
  *   GET  /billing/purchases          payment history
  *
- * An unlock is one payment for one creator and it opens everything she has
- * posted — there is no photo tier and no video tier. Each creator sets her
- * own price, which arrives on her profile and on her feed card as
- * `unlockPriceMinor`, so nothing here has to guess it.
+ * Each item carries its own price, set by its creator, and buying one buys
+ * that one. There is no bundle and no all-access pass. The price arrives on
+ * the item itself (`priceMinor` / `priceDisplay`), so nothing here guesses it.
  *
  * ── Creators pay the platform ──────────────────────────────────
  *   GET  /billing/creator-packages        BRONZE | SILVER | GOLD, cheapest first
  *   GET  /billing/creator-packages/mine   the package held + allowance left
  *   POST /billing/creator-packages        { packageCode }
  *
- * Bronze covers photos, silver covers video, gold covers both, and each
- * carries its own allowance.
+ * Every package covers photos and video; they differ on how many premium
+ * videos, how many minutes of live per day, and placement in search.
  *
  * ── Checkout is asynchronous ───────────────────────────────────
  * Every `POST` returns a CheckoutResponse whose `action` says what to do:
@@ -41,8 +39,6 @@ export { formatMinor, formatDisplay, formatAmount, currencyCode } from './curren
  * covers a provider that happens to settle before the response is written.
  */
 
-export const plans = () => http.get('/billing/plans');
-
 /* ── Creator packages ──────────────────────────────────────────── */
 
 export const creatorPackages = () => http.get('/billing/creator-packages');
@@ -57,9 +53,11 @@ export const entitlements = () => http.get('/billing/entitlements');
 
 export const purchases = () => http.get('/billing/purchases');
 
-export const unlockProfile = (userId) => http.post(`/billing/unlocks/${userId}`);
+/** Buy one photo or video, at the price its creator set on it. */
+export const unlockMedia = (mediaId) => http.post(`/billing/media/${mediaId}`);
 
-export const subscribe = (planCode) => http.post('/billing/subscriptions', { planCode });
+/** Buy entry to one live broadcast. */
+export const buyLiveAccess = (sessionId) => http.post(`/billing/live/${sessionId}`);
 
 /** True when a checkout response already represents a paid purchase. */
 export const isSettled = (checkout) =>
@@ -101,5 +99,13 @@ export function humanDuration(iso) {
   return `${hours} hours`;
 }
 
-export const isUnlocked = (ent, userId) =>
-  Boolean(ent?.subscribed) || Boolean(ent?.unlockedMembers?.some((m) => m.userId === userId));
+/**
+ * Whether the caller can see an item.
+ *
+ * The server already decided — every gallery and listing carries a `locked`
+ * flag per item — so this is only the free-trial shortcut a client uses to
+ * decide whether to show a paywall at all.
+ */
+export const onTrial = (ent) => Boolean(ent?.onTrial);
+
+export const creditBalance = (ent) => ent?.creditBalanceMinor ?? 0;

@@ -1413,3 +1413,111 @@ body::before {
     padding: 12px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════
+   Free trial, referrals, per-item checkout
+   ══════════════════════════════════════════════════════════ */
+
+/* Only shown in the last few days, so it can afford to be loud. */
+.trial-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 11px 20px;
+  font-size: 13.5px;
+  color: var(--text);
+  background: linear-gradient(90deg, rgba(217, 180, 106, 0.16), rgba(217, 180, 106, 0.06));
+  border-bottom: 1px solid rgba(217, 180, 106, 0.3);
+}
+.trial-banner > .anticon {
+  color: var(--gold);
+}
+.trial-banner-cta {
+  margin-left: auto;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0b0a0e;
+  background: var(--gold);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.trial-banner-cta:hover {
+  background: var(--gold-bright);
+}
+
+/* The invite code: big, spaced, and selectable as one token. */
+.referral-code {
+  margin-top: 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  color: var(--gold-bright);
+  user-select: all;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+/* One line item, because per-item checkout has exactly one. */
+.checkout-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+}
+.checkout-item-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 10px;
+  color: var(--gold-bright);
+  background: var(--gold-wash);
+  border: 1px solid rgba(217, 180, 106, 0.3);
+}
+.checkout-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.checkout-item-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.checkout-item-price {
+  margin-left: auto;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.checkout-credit {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--success);
+  background: rgba(79, 209, 139, 0.1);
+  border: 1px solid rgba(79, 209, 139, 0.28);
+}
+
+/* Top-tier badge, for the placement a Black Diamond package buys. */
+.pill-tier {
+  background: linear-gradient(120deg, #2b2333, #171420);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+  letter-spacing: 0.1em;
+}

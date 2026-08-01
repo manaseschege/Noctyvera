@@ -33,6 +33,7 @@ import Studio from './pages/me/Studio';
 import MyMedia from './pages/me/MyMedia';
 import MyLive from './pages/me/MyLive';
 import MyPackage from './pages/me/MyPackage';
+import Referrals from './pages/me/Referrals';
 import MyBilling from './pages/me/MyBilling';
 import MyAccount from './pages/me/MyAccount';
 
@@ -88,6 +89,8 @@ export default function App() {
             <Route path="home" element={<Navigate to="/discover" replace />} />
             <Route path="me/billing" element={<MyBilling />} />
             <Route path="me/account" element={<MyAccount />} />
+            {/* Viewers invite people too, so this is not studio-only. */}
+            <Route path="referrals" element={<Referrals />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />
@@ -100,6 +103,7 @@ export default function App() {
             <Route path="media" element={<MyMedia />} />
             <Route path="live" element={<MyLive />} />
             <Route path="packages" element={<MyPackage />} />
+            <Route path="referrals" element={<Referrals />} />
             <Route path="billing" element={<MyBilling />} />
             <Route path="account" element={<MyAccount />} />
             <Route path="*" element={<Navigate to="/studio" replace />} />

@@ -238,6 +238,12 @@ export function needsPackage(user, packageStatus) {
   return !packageStatus.active;
 }
 
+/** True while the 7-day free trial is running. Everything is open until it ends. */
+export const onTrial = (entitlements) => Boolean(entitlements?.onTrial);
+
+/** Spendable referral credit, in minor units. */
+export const creditOf = (entitlements) => entitlements?.creditBalanceMinor ?? 0;
+
 /** Where a signed-in user belongs right now. */
 export function homeFor(user, access = {}) {
   if (!user) return '/';

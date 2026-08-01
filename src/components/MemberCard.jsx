@@ -27,9 +27,13 @@ export default function MemberCard({ member }) {
   // Each creator names her own price, and the card carries it — showing a
   // single platform-wide figure was a lie the moment prices stopped being
   // uniform.
-  const price = member.unlockPriceDisplay
-    ? formatDisplay(member.unlockPriceDisplay, member.currency, lang)
+  // Per-item pricing means there is no single price for a person, so the card
+  // shows the cheapest locked thing on the profile.
+  const from = member.fromPriceDisplay
+    ? formatDisplay(member.fromPriceDisplay, member.currency, lang)
     : null;
+  // 3 Black Diamond, 2 Diamond, 1 Pro, 0 unranked.
+  const topTier = member.searchPriority >= 3;
 
   return (
     <Link to={`/m/${member.userId}`} className="creator-card">
@@ -50,6 +54,9 @@ export default function MemberCard({ member }) {
                 <span className="live-dot" /> {t('common.live').toUpperCase()}
               </span>
             )}
+            {/* What "highest priority in search and homepage listings" looks
+                like to a visitor. */}
+            {topTier && <span className="pill pill-tier">{t('discover.topTier')}</span>}
             {locked > 0 && !member.unlocked && (
               <span className="pill pill-dark">
                 <LockFilled /> {locked}
@@ -57,11 +64,9 @@ export default function MemberCard({ member }) {
             )}
           </span>
 
-          {member.unlocked ? (
-            <span className="pill pill-gold">{t('common.unlocked')}</span>
-          ) : (
-            price && <span className="creator-card-price">{price}</span>
-          )}
+          {from
+            ? <span className="creator-card-price">{t('discover.fromPrice', { price: from })}</span>
+            : <span className="pill pill-gold">{t('common.unlocked')}</span>}
         </div>
 
         <div className="creator-card-body">
@@ -95,8 +100,8 @@ export default function MemberCard({ member }) {
               <span title={t('common.clips')}>
                 <VideoCameraFilled /> {member.lockedVideoCount ?? 0}
               </span>
-              {!member.unlocked && price && (
-                <span className="creator-card-unlock-hint">{t('discover.unlockAll')}</span>
+              {member.following && (
+                <span className="creator-card-unlock-hint">{t('discover.following')}</span>
               )}
             </span>
           </div>

@@ -5,6 +5,9 @@ export * as mediaApi from './media';
 export * as billingApi from './billing';
 export * as liveApi from './live';
 export * as adminApi from './admin';
+export * as referralApi from './referrals';
+export * as callsApi from './calls';
+export * as socialApi from './social';
 
 export { ApiError, http, tokens, onAuthExpired } from './http';
 

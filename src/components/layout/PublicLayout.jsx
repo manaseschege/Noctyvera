@@ -15,6 +15,7 @@ import Brand from '../Brand';
 import { BRAND } from '../../brand';
 import LanguageToggle from '../LanguageToggle';
 import { useT } from '../../i18n/useT';
+import TrialBanner from '../TrialBanner';
 import { VERIFICATION_COLOR, VERIFICATION_LABEL, canPost, isStaff, useAuth } from '../../store/auth';
 
 export default function PublicLayout() {
@@ -167,6 +168,7 @@ export default function PublicLayout() {
         </Space>
       </Drawer>
 
+      <TrialBanner />
       <main style={{ flex: 1 }}>
         <Outlet />
       </main>

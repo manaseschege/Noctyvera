@@ -42,7 +42,7 @@ export default function MyBilling() {
     load();
   }, [load]);
 
-  const unlocked = entitlements?.unlockedMembers ?? [];
+  const ownedCount = entitlements?.unlockedItems ?? 0;
   const pending = history.filter((p) => p.status === 'PENDING');
   const currency = plans?.currency;
 
@@ -69,8 +69,8 @@ export default function MyBilling() {
         <Col xs={24} sm={8}>
           <div className="stat-card">
             <div className="stat-label">{t('billing.subscription')}</div>
-            <div className="stat-value" style={{ color: entitlements?.subscribed ? 'var(--success)' : 'var(--text-muted)', fontSize: 26 }}>
-              {entitlements?.subscribed ? entitlements.planCode ?? t('studio.subActive') : t('billing.none')}
+            <div className="stat-value" style={{ color: entitlements?.onTrial ? 'var(--success)' : 'var(--text-muted)', fontSize: 26 }}>
+              {entitlements?.onTrial ? t('trial.active') : t('billing.payPerItem')}
             </div>
             {entitlements?.subscribed && entitlements.subscriptionExpiresAt && (
               <div className="stat-delta faint" style={{ fontWeight: 400 }}>
@@ -85,7 +85,7 @@ export default function MyBilling() {
           </div>
         </Col>
         <Col xs={12} sm={8}>
-          <StatCard label={t('billing.profilesUnlocked')} value={unlocked.length} accent={unlocked.length ? 'var(--gold-bright)' : undefined} />
+          <StatCard label={t('billing.profilesUnlocked')} value={ownedCount} accent={ownedCount ? 'var(--gold-bright)' : undefined} />
         </Col>
         <Col xs={12} sm={8}>
           <StatCard label={t('billing.paymentsMade')} value={history.filter((p) => p.status === 'COMPLETED').length} />
@@ -130,7 +130,7 @@ export default function MyBilling() {
         <Col xs={24} lg={14}>
           <div className="glass" style={{ padding: 22, height: '100%' }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 16px' }}>{t('billing.unlockedTitle')}</h3>
-            {unlocked.length === 0 ? (
+            {ownedCount === 0 ? (
               <Blank
                 title={t('billing.nothingUnlocked')}
                 description={t('billing.nothingUnlockedBody')}

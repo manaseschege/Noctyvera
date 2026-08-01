@@ -10,8 +10,7 @@ import {
   VideoCameraFilled,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { billingApi, membersApi } from '../../api';
-import { humanDuration } from '../../api/billing';
+import { membersApi } from '../../api';
 import { formatDisplay } from '../../api/currency';
 import { useI18n } from '../../i18n/useT';
 import { BRAND } from '../../brand';
@@ -39,7 +38,7 @@ export default function Landing() {
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    billingApi.plans().then(setPlans).catch(() => {});
+    setPlans({});
     // The creator price list. Public, so the pitch below shows a real number
     // rather than "contact us".
     billingApi.creatorPackages().then(setPackages).catch(() => setPackages([]));
@@ -52,7 +51,6 @@ export default function Landing() {
   }, []);
 
   const cta = user ? homeFor(user, { entitlements, packageStatus }) : '/join';
-  const currency = plans?.currency;
   const cheapestPackage = packages?.[0];
 
   return (
@@ -93,22 +91,14 @@ export default function Landing() {
                       <div className="hero-stat-value">{t('landing.freeValue')}</div>
                       <div className="hero-stat-label">{t('landing.freeLabel')}</div>
                     </div>
-                    {plans.profileUnlock && (
-                      <div>
-                        <div className="hero-stat-value">
-                          {formatDisplay(plans.profileUnlock.priceDisplay, currency, lang)}
-                        </div>
-                        <div className="hero-stat-label">{t('landing.oneProfile', { duration: humanDuration(plans.profileUnlock.duration) })}</div>
-                      </div>
-                    )}
-                    {plans.subscriptions?.[0] && (
-                      <div>
-                        <div className="hero-stat-value">
-                          {formatDisplay(plans.subscriptions[0].priceDisplay, currency, lang)}
-                        </div>
-                        <div className="hero-stat-label">{t('landing.everyone', { label: plans.subscriptions[0].label })}</div>
-                      </div>
-                    )}
+                    <div>
+                      <div className="hero-stat-value">{t('landing.trialValue')}</div>
+                      <div className="hero-stat-label">{t('landing.trialLabel')}</div>
+                    </div>
+                    <div>
+                      <div className="hero-stat-value">{t('landing.perItemValue')}</div>
+                      <div className="hero-stat-label">{t('landing.perItemLabel')}</div>
+                    </div>
                   </motion.div>
                 )}
               </motion.div>
