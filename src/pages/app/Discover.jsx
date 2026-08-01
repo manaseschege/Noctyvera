@@ -66,7 +66,9 @@ export default function Discover() {
         subtitle={gate ? t('discover.gatedSubtitle') : t('discover.subtitle', { count: total })}
       />
 
-      <div className="glass" style={{ padding: 16, marginBottom: 26, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Sticks while the grid scrolls — the filters are useless if reaching
+          them means scrolling back to the top of a hundred cards. */}
+      <div className="filter-bar">
         <Input
           allowClear
           size="large"
@@ -79,7 +81,7 @@ export default function Discover() {
         />
 
         <Space size={10} style={{ marginLeft: 'auto' }}>
-          <span className="muted" style={{ fontSize: 13 }}>Live only</span>
+          <span className="muted" style={{ fontSize: 13 }}>{t('discover.liveOnly')}</span>
           <Switch checked={liveOnly} onChange={setLiveOnly} />
           <Tooltip title={dense ? t('discover.largerCards') : t('discover.morePerRow')}>
             <Button type="text" icon={dense ? <AppstoreOutlined /> : <TableOutlined />} onClick={() => setDense((d) => !d)} />

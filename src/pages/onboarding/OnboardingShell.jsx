@@ -15,7 +15,7 @@ export default function OnboardingShell({ children, width = 640 }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  // DONE but still on the funnel means the activation payment is outstanding.
+  // DONE but still on the funnel means the package has not been bought yet.
   const step =
     user?.nextStep === NEXT_STEP.RESUBMIT_KYC
       ? 1

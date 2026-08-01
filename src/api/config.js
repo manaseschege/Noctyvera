@@ -46,8 +46,22 @@ export const ACCOUNT_STATUS = {
   DEACTIVATED: 'DEACTIVATED',
 };
 
+/**
+ * What an account is for.
+ *
+ * A viewer is asked for nothing beyond an email and a password: no profile,
+ * no date of birth, no documents. They browse, pay for whoever they want to
+ * see, and watch. Everything in the onboarding funnel is creator-only.
+ */
+export const ACCOUNT_TYPE = {
+  VIEWER: 'VIEWER',
+  CREATOR: 'CREATOR',
+};
+
 /** Server-driven onboarding — /me returns the step the user is on. */
 export const NEXT_STEP = {
+  /** Viewers, always. There is nothing for them to complete. */
+  BROWSE: 'BROWSE',
   CREATE_PROFILE: 'CREATE_PROFILE',
   SUBMIT_KYC: 'SUBMIT_KYC',
   AWAIT_REVIEW: 'AWAIT_REVIEW',
@@ -56,17 +70,20 @@ export const NEXT_STEP = {
 };
 
 /**
- * Activation.
+ * What a creator pays the platform to publish.
  *
- * A member who has passed the identity check must pay before the app opens
- * up. The backend has no dedicated activation product — PurchaseResponse.type
- * is only PROFILE_UNLOCK | SUBSCRIPTION — so the monthly subscription plan
- * is what's charged, and `entitlements.subscribed` is what's checked.
+ *   BRONZE  photos only, small allowance
+ *   SILVER  video only, small allowance
+ *   GOLD    photos and video, large allowance
+ *
+ * The prices and the allowances come from
+ * `GET /billing/creator-packages`; only the ordering and the accent colour
+ * are decided here.
  */
-export const ACTIVATION = {
-  planCode: 'MONTHLY',
-  /** Any active subscription satisfies the gate; the server can't distinguish. */
-  isActivated: (entitlements) => Boolean(entitlements?.subscribed),
+export const CREATOR_PACKAGES = {
+  BRONZE: { accent: '#C0784A', order: 0 },
+  SILVER: { accent: '#B9BEC7', order: 1 },
+  GOLD: { accent: '#D9B46A', order: 2 },
 };
 
 export const DOC_TYPES = [
@@ -130,7 +147,8 @@ export const REJECTION_REASONS = [
   'OTHER',
 ].map((value) => ({ value, labelKey: `enums.rejection.${value}` }));
 
-export const GENDERS = ['FEMALE', 'MALE', 'NON_BINARY', 'OTHER', 'PREFER_NOT_TO_SAY'].map((value) => ({
+/** Two values, matching the server's Gender enum. */
+export const GENDERS = ['FEMALE', 'MALE'].map((value) => ({
   value,
   labelKey: `enums.gender.${value}`,
 }));
@@ -153,6 +171,20 @@ export const MEDIA_STATUS = {
   PENDING_REVIEW: 'PENDING_REVIEW',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
+};
+
+/**
+ * One-time codes.
+ *
+ * `POST /auth/login` answers with a challenge rather than tokens; the code
+ * emailed to the account is what completes the sign-in. The server reports
+ * `codeLength`, so this is only the fallback for rendering the input boxes
+ * before the first response arrives.
+ */
+export const OTP = {
+  defaultLength: 6,
+  /** Matches the server's resend cooldown, so the button re-enables in step. */
+  resendCooldownSeconds: 30,
 };
 
 /** Upload ceilings enforced client-side before we bother the server. */

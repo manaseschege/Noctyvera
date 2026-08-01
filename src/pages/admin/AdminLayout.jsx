@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Tag } from 'antd';
-import { DollarOutlined, IdcardOutlined, PictureOutlined } from '@ant-design/icons';
+import { DollarOutlined, IdcardOutlined } from '@ant-design/icons';
 import { adminApi } from '../../api';
 import { isAdmin, useAuth } from '../../store/auth';
 import DashboardLayout from '../../components/layout/DashboardLayout';
@@ -11,15 +11,14 @@ const countOf = (v) => (typeof v === 'number' ? v : v?.count ?? 0);
 export default function AdminLayout() {
   const t = useT();
   const { user } = useAuth();
-  const [counts, setCounts] = useState({ kyc: 0, media: 0, payments: 0 });
+  const [counts, setCounts] = useState({ kyc: 0, payments: 0 });
 
   const load = useCallback(async () => {
-    const [kyc, media, payments] = await Promise.all([
+    const [kyc, payments] = await Promise.all([
       adminApi.kycQueueCount().catch(() => 0),
-      adminApi.takenDownCount().catch(() => 0),
       isAdmin(user) ? adminApi.pendingPurchaseCount().catch(() => 0) : Promise.resolve(0),
     ]);
-    setCounts({ kyc: countOf(kyc), media: countOf(media), payments: countOf(payments) });
+    setCounts({ kyc: countOf(kyc), payments: countOf(payments) });
   }, [user]);
 
   useEffect(() => {
@@ -44,13 +43,12 @@ export default function AdminLayout() {
 
   const nav = [
     { key: '/admin/kyc', icon: <IdcardOutlined />, label: label(t('admin.kycTitle'), counts.kyc) },
-    { key: '/admin/media', icon: <PictureOutlined />, label: label(t('admin.mediaTitle'), counts.media) },
     ...(isAdmin(user)
       ? [{ key: '/admin/payments', icon: <DollarOutlined />, label: label(t('admin.paymentsTitle'), counts.payments) }]
       : []),
   ];
 
-  const waiting = counts.kyc + counts.media + counts.payments;
+  const waiting = counts.kyc + counts.payments;
 
   return (
     <DashboardLayout

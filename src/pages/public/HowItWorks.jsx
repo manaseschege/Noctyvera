@@ -37,7 +37,7 @@ export default function HowItWorks() {
     {
       key: 'free',
       label: t('howItWorks.q2'),
-      children: t('howItWorks.a2', { count: plans?.freePreviewPhotos ?? 1 }),
+      children: t('howItWorks.a2'),
     },
     {
       key: 'unlock-vs-sub',

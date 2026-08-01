@@ -2,26 +2,56 @@ import { http } from './http';
 export { formatMinor, formatDisplay, formatAmount, currencyCode } from './currency';
 
 /**
- * Money.
+ * Money, in both directions.
  *
- *   GET  /billing/plans              PlanResponse — prices, currency, free preview count
- *   POST /billing/unlocks/{userId}   one-off unlock of a single member's profile
- *   POST /billing/subscriptions      { planCode } — WEEKLY | MONTHLY | QUARTERLY
- *   GET  /billing/purchases          the user's purchase history
- *   GET  /billing/entitlements       what they currently have access to
+ * ── Viewers pay creators ───────────────────────────────────────
+ *   GET  /billing/plans              prices, currency, the default unlock price
+ *   POST /billing/unlocks/{userId}   unlock one creator, at *her* price
+ *   POST /billing/subscriptions      { planCode } — unlocks everybody
+ *   GET  /billing/entitlements       what the caller currently has access to
+ *   GET  /billing/purchases          payment history
  *
- * Checkout is asynchronous. `POST` returns a CheckoutResponse whose
- * `action` says what the UI must do next:
+ * An unlock is one payment for one creator and it opens everything she has
+ * posted — there is no photo tier and no video tier. Each creator sets her
+ * own price, which arrives on her profile and on her feed card as
+ * `unlockPriceMinor`, so nothing here has to guess it.
  *
+ * ── Creators pay the platform ──────────────────────────────────
+ *   GET  /billing/creator-packages        BRONZE | SILVER | GOLD, cheapest first
+ *   GET  /billing/creator-packages/mine   the package held + allowance left
+ *   POST /billing/creator-packages        { packageCode }
+ *
+ * Bronze covers photos, silver covers video, gold covers both, and each
+ * carries its own allowance.
+ *
+ * ── Checkout is asynchronous ───────────────────────────────────
+ * Every `POST` returns a CheckoutResponse whose `action` says what to do:
+ *
+ *   NONE              already paid — nothing to do, nothing to poll
  *   REDIRECT          send the browser to `redirectUrl`
  *   PROMPT_ON_PHONE   an STK push is on its way — wait and poll
  *   MANUAL            show `instructions`; an admin settles it by hand
  *
- * In every case the purchase starts PENDING and flips to COMPLETED or
- * FAILED out of band, so callers poll `waitForSettlement`.
+ * `NONE` is the configured default today: the server settles on the spot and
+ * the purchase comes back `COMPLETED`, so the client should grant access
+ * immediately rather than opening a waiting screen. The other three all start
+ * `PENDING` and flip out of band, so callers poll `waitForSettlement`.
+ *
+ * Use `isSettled(checkout)` rather than testing `action` directly — it also
+ * covers a provider that happens to settle before the response is written.
  */
 
 export const plans = () => http.get('/billing/plans');
+
+/* ── Creator packages ──────────────────────────────────────────── */
+
+export const creatorPackages = () => http.get('/billing/creator-packages');
+
+/** The caller's package and remaining allowance. Creator accounts only. */
+export const myPackage = () => http.get('/billing/creator-packages/mine');
+
+export const buyCreatorPackage = (packageCode) =>
+  http.post('/billing/creator-packages', { packageCode });
 
 export const entitlements = () => http.get('/billing/entitlements');
 
@@ -30,6 +60,10 @@ export const purchases = () => http.get('/billing/purchases');
 export const unlockProfile = (userId) => http.post(`/billing/unlocks/${userId}`);
 
 export const subscribe = (planCode) => http.post('/billing/subscriptions', { planCode });
+
+/** True when a checkout response already represents a paid purchase. */
+export const isSettled = (checkout) =>
+  checkout?.action === 'NONE' || checkout?.purchase?.status === 'COMPLETED';
 
 /**
  * Poll a pending purchase until it settles.

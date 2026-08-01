@@ -3,20 +3,33 @@ import { EnvironmentOutlined, LockFilled, PictureFilled, VideoCameraFilled } fro
 import SmartImage from './SmartImage';
 import { AuthedImage } from './AuthedFile';
 import { coverOf, lockedCount, toFetchPath } from '../api/members';
-import { useT } from '../i18n/useT';
+import { formatDisplay } from '../api/currency';
+import { useI18n } from '../i18n/useT';
 
 /**
  * A MemberCardResponse rendered as the browse tile.
- * Everything here is free to look at — the preview photo, the city, the
- * counts of what's still locked — because that's what sells the profile.
+ *
+ * Everything here is free to look at — the preview photo, the city, the counts
+ * of what's still locked — because that's what sells the profile.
+ *
+ * **The price is never hidden behind hover.** It lived in the reveal at first,
+ * which meant the single most important commercial fact on the card was
+ * invisible until you moved a mouse over it — and on a phone, where there is no
+ * hover, invisible full stop. It sits in the top row now, always on.
  */
 export default function MemberCard({ member }) {
-  const t = useT();
+  const { t, lang } = useI18n();
   if (!member) return null;
 
   const cover = coverOf(member);
   const locked = lockedCount(member);
   const fetchPath = toFetchPath(cover);
+  // Each creator names her own price, and the card carries it — showing a
+  // single platform-wide figure was a lie the moment prices stopped being
+  // uniform.
+  const price = member.unlockPriceDisplay
+    ? formatDisplay(member.unlockPriceDisplay, member.currency, lang)
+    : null;
 
   return (
     <Link to={`/m/${member.userId}`} className="creator-card">
@@ -31,19 +44,24 @@ export default function MemberCard({ member }) {
         <div className="creator-card-scrim" />
 
         <div className="creator-card-top">
-          <span style={{ display: 'flex', gap: 6 }}>
+          <span className="creator-card-flags">
             {member.liveNow && (
               <span className="pill pill-live">
                 <span className="live-dot" /> {t('common.live').toUpperCase()}
               </span>
             )}
+            {locked > 0 && !member.unlocked && (
+              <span className="pill pill-dark">
+                <LockFilled /> {locked}
+              </span>
+            )}
           </span>
-          {locked > 0 && !member.unlocked && (
-            <span className="pill pill-gold">
-              <LockFilled /> {locked}
-            </span>
+
+          {member.unlocked ? (
+            <span className="pill pill-gold">{t('common.unlocked')}</span>
+          ) : (
+            price && <span className="creator-card-price">{price}</span>
           )}
-          {member.unlocked && <span className="pill pill-gold">{t('common.unlocked')}</span>}
         </div>
 
         <div className="creator-card-body">
@@ -66,15 +84,20 @@ export default function MemberCard({ member }) {
             )}
           </div>
 
+          {/* Secondary detail. Hover-revealed on a mouse so the resting grid
+              stays calm; always open where there is no hover to reveal it. */}
           <div className="creator-card-reveal">
             {member.bio && <span className="creator-card-tagline">{member.bio}</span>}
             <span className="creator-card-counts">
-              <span>
+              <span title={t('common.photos')}>
                 <PictureFilled /> {member.lockedPhotoCount ?? 0}
               </span>
-              <span>
+              <span title={t('common.clips')}>
                 <VideoCameraFilled /> {member.lockedVideoCount ?? 0}
               </span>
+              {!member.unlocked && price && (
+                <span className="creator-card-unlock-hint">{t('discover.unlockAll')}</span>
+              )}
             </span>
           </div>
         </div>

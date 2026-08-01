@@ -1,6 +1,7 @@
 import { Tag } from 'antd';
 import {
   AppstoreOutlined,
+  CrownOutlined,
   DashboardOutlined,
   PictureOutlined,
   SettingOutlined,
@@ -18,12 +19,13 @@ import { useT } from '../../i18n/useT';
  */
 export default function StudioLayout() {
   const t = useT();
-  const { user, entitlements } = useAuth();
+  const { user, packageStatus } = useAuth();
 
   const nav = [
     { key: '/studio', icon: <DashboardOutlined />, label: t('nav.myDashboard') },
     { key: '/studio/media', icon: <PictureOutlined />, label: t('nav.myPhotos') },
     { key: '/studio/live', icon: <VideoCameraOutlined />, label: t('nav.myLiveRooms') },
+    { key: '/studio/packages', icon: <CrownOutlined />, label: t('nav.myPackage') },
     { key: '/studio/billing', icon: <UnlockOutlined />, label: t('nav.accessPayments') },
     { key: '/studio/account', icon: <SettingOutlined />, label: t('nav.account') },
     { key: '/discover', icon: <AppstoreOutlined />, label: t('nav.browseMembers') },
@@ -36,7 +38,9 @@ export default function StudioLayout() {
       badge={
         <span className="muted" style={{ fontSize: 13, display: 'flex', gap: 10, alignItems: 'center' }}>
           @{user?.username}
-          {entitlements?.subscribed && <Tag color="gold" style={{ marginInlineEnd: 0 }}>{t('common.subscribed')}</Tag>}
+          {packageStatus?.active && packageStatus.label && (
+            <Tag color="gold" style={{ marginInlineEnd: 0 }}>{packageStatus.label}</Tag>
+          )}
         </span>
       }
     />

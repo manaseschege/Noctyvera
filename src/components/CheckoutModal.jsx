@@ -9,8 +9,17 @@ import { useI18n } from '../i18n/useT';
 
 /**
  * Buying access. Two products:
- *   · unlock  — one member's profile, for a fixed window
+ *   · unlock  — one creator, everything she has posted, at her price
  *   · plan    — a subscription covering everyone
+ *
+ * The unlock is deliberately one line item and not a menu. Splitting it into
+ * a photos tier and a videos tier was considered and dropped: a viewer picks
+ * a person, not a media type, and every extra choice on a payment screen is
+ * somewhere to hesitate.
+ *
+ * The price comes off the member's own card or profile
+ * (`unlockPriceMinor` / `unlockPriceDisplay`), falling back to the platform
+ * default from `/billing/plans` for a member object that predates it.
  *
  * Checkout is asynchronous. The POST returns a CheckoutResponse whose
  * `action` decides what happens next:
@@ -63,10 +72,17 @@ export default function CheckoutModal({ open, onClose, member, onSettled }) {
         return;
       }
 
-      // PROMPT_ON_PHONE / MANUAL — settle out of band, so wait for it.
-      const controller = new AbortController();
-      abortRef.current = controller;
-      const final = await billingApi.waitForSettlement(res.purchase.id, { signal: controller.signal });
+      // Already paid — go straight to the result rather than opening a waiting
+      // screen for something that is never going to change.
+      const final = billingApi.isSettled(res)
+        ? res.purchase
+        : await (async () => {
+            // PROMPT_ON_PHONE / MANUAL — settle out of band, so wait for it.
+            const controller = new AbortController();
+            abortRef.current = controller;
+            return billingApi.waitForSettlement(res.purchase.id, { signal: controller.signal });
+          })();
+
       setSettled(final);
 
       if (final?.status === 'COMPLETED') {
@@ -89,11 +105,15 @@ export default function CheckoutModal({ open, onClose, member, onSettled }) {
   const currency = plans?.currency;
   const price = (d, c) => formatDisplay(d, c ?? currency, lang);
 
+  // Hers if she has set one, the platform default otherwise.
+  const unlockPrice = member?.unlockPriceDisplay ?? unlockOpt?.priceDisplay;
+  const unlockCurrency = member?.currency ?? currency;
+
   /* ── Settled ── */
   if (settled) {
     const won = settled.status === 'COMPLETED';
     return (
-      <Modal open={open} onCancel={close} footer={<Button type="primary" onClick={close}>Done</Button>} width={430} destroyOnHidden>
+      <Modal open={open} onCancel={close} footer={<Button type="primary" onClick={close}>{t('common.done')}</Button>} width={430} destroyOnHidden>
         <Result
           status={won ? 'success' : 'error'}
           title={won ? t('billing.paymentReceived') : t('billing.paymentFailed')}
@@ -112,11 +132,11 @@ export default function CheckoutModal({ open, onClose, member, onSettled }) {
   /* ── Waiting on an out-of-band payment ── */
   if (checkout && busy) {
     return (
-      <Modal open={open} onCancel={close} footer={<Button onClick={close}>Cancel</Button>} width={430} destroyOnHidden>
+      <Modal open={open} onCancel={close} footer={<Button onClick={close}>{t('common.cancel')}</Button>} width={430} destroyOnHidden>
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <Spin size="large" />
           <h3 className="serif" style={{ fontSize: 22, margin: '22px 0 8px' }}>
-            {checkout.action === 'PROMPT_ON_PHONE' ? 'Check your phone' : 'Waiting for confirmation'}
+            {checkout.action === 'PROMPT_ON_PHONE' ? t('billing.checkPhone') : t('billing.waiting')}
           </h3>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.7, maxWidth: 320, margin: '0 auto' }}>
             {checkout.instructions ||
@@ -163,22 +183,22 @@ export default function CheckoutModal({ open, onClose, member, onSettled }) {
       ) : (
         <>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.7, marginTop: 0 }}>
-            {t('billing.checkoutIntro', { count: plans.freePreviewPhotos ?? 1 })}
+            {t('billing.checkoutIntro')}
           </p>
 
           <Radio.Group value={choice} onChange={(e) => setChoice(e.target.value)} style={{ width: '100%' }}>
             <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              {member && unlockOpt && (
+              {member && unlockPrice && (
                 <Radio value="unlock" style={optStyle(choice === 'unlock')}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
                     <span>
                       <span style={{ fontWeight: 600, fontSize: 13.5 }}>{t('billing.unlockOne', { username: member.username })}</span>
                       <span className="faint" style={{ display: 'block', fontSize: 12, marginTop: 3 }}>
-                        {t('billing.thisProfileOnly', { duration: humanDuration(unlockOpt.duration) })}
+                        {t('billing.thisProfileOnly', { duration: humanDuration(unlockOpt?.duration) })}
                       </span>
                     </span>
                     <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                      {price(unlockOpt.priceDisplay)}
+                      {price(unlockPrice, unlockCurrency)}
                     </span>
                   </div>
                 </Radio>

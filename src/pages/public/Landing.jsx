@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Col, Row, Space } from 'antd';
 import {
   ArrowRightOutlined,
+  CheckCircleFilled,
   LockFilled,
   SafetyCertificateOutlined,
   UnlockOutlined,
@@ -17,6 +18,7 @@ import { BRAND } from '../../brand';
 import { homeFor, useAuth } from '../../store/auth';
 import HeroCollage from '../../components/HeroCollage';
 import MemberCard from '../../components/MemberCard';
+import PackagePicker from '../../components/PackagePicker';
 import { SectionHead } from '../../components/ui';
 
 const fadeUp = {
@@ -30,13 +32,17 @@ const fadeUp = {
 
 export default function Landing() {
   const navigate = useNavigate();
-  const { user, entitlements } = useAuth();
+  const { user, entitlements, packageStatus } = useAuth();
   const { t, lang } = useI18n();
   const [plans, setPlans] = useState(null);
+  const [packages, setPackages] = useState([]);
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
     billingApi.plans().then(setPlans).catch(() => {});
+    // The creator price list. Public, so the pitch below shows a real number
+    // rather than "contact us".
+    billingApi.creatorPackages().then(setPackages).catch(() => setPackages([]));
     // 401 while the browse endpoint is authenticated — the collage simply
     // falls back to placeholders until it opens up.
     membersApi
@@ -45,8 +51,9 @@ export default function Landing() {
       .catch(() => setMembers([]));
   }, []);
 
-  const cta = user ? homeFor(user, entitlements) : '/join';
+  const cta = user ? homeFor(user, { entitlements, packageStatus }) : '/join';
   const currency = plans?.currency;
+  const cheapestPackage = packages?.[0];
 
   return (
     <>
@@ -79,11 +86,12 @@ export default function Landing() {
 
                 {plans && (
                   <motion.div variants={fadeUp} custom={4} className="hero-stats">
+                    {/* Browsing is free and always has been; the old counter
+                        here read a `freePreviewPhotos` field the API stopped
+                        sending, so it rendered a blank number. */}
                     <div>
-                      <div className="hero-stat-value">
-                        {plans.freePreviewPhotos}
-                      </div>
-                      <div className="hero-stat-label">{t('landing.freePreviews', { count: plans.freePreviewPhotos ?? 1 })}</div>
+                      <div className="hero-stat-value">{t('landing.freeValue')}</div>
+                      <div className="hero-stat-label">{t('landing.freeLabel')}</div>
                     </div>
                     {plans.profileUnlock && (
                       <div>
@@ -186,6 +194,57 @@ export default function Landing() {
           </Row>
         </div>
       </section>
+
+      {/* The other half of the marketplace. Without this the whole page reads
+          as being for buyers, and creators are the harder side to recruit. */}
+      {packages.length > 0 && (
+        <section className="section creator-pitch">
+          <div className="shell">
+            <Row gutter={[40, 32]} align="middle">
+              <Col xs={24} lg={11}>
+                <div className="eyebrow">{t('landing.creatorEyebrow')}</div>
+                <h2 className="serif" style={{ fontSize: 34, margin: '14px 0 14px', lineHeight: 1.15 }}>
+                  {t('landing.creatorTitle')}
+                </h2>
+                <p className="muted" style={{ fontSize: 14.5, lineHeight: 1.8, margin: '0 0 22px' }}>
+                  {t('landing.creatorBody')}
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 26 }}>
+                  {[t('landing.creatorPoint1'), t('landing.creatorPoint2'), t('landing.creatorPoint3')].map((li) => (
+                    <div key={li} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 14 }}>
+                      <CheckCircleFilled style={{ color: 'var(--gold)', fontSize: 13, marginTop: 4 }} />
+                      <span className="muted">{li}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Space size={14} wrap>
+                  <Button
+                    type="primary"
+                    size="large"
+                    onClick={() => navigate('/join?as=creator')}
+                    style={{ height: 46, padding: '0 26px' }}
+                  >
+                    {t('landing.creatorCta')} <ArrowRightOutlined />
+                  </Button>
+                  {cheapestPackage && (
+                    <span className="faint" style={{ fontSize: 13 }}>
+                      {t('landing.creatorPricesFrom', {
+                        price: formatDisplay(cheapestPackage.priceDisplay, cheapestPackage.currency, lang),
+                      })}
+                    </span>
+                  )}
+                </Space>
+              </Col>
+
+              <Col xs={24} lg={13}>
+                <PackagePicker packages={packages} value={null} onChange={() => navigate('/join?as=creator')} />
+              </Col>
+            </Row>
+          </div>
+        </section>
+      )}
 
       <section className="section">
         <div className="shell">

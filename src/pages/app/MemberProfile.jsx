@@ -18,7 +18,8 @@ import MediaTile from '../../components/MediaTile';
 import SmartImage from '../../components/SmartImage';
 import { AuthedImage, AuthedVideo } from '../../components/AuthedFile';
 import { AccessGate, Blank, GridSkeleton } from '../../components/ui';
-import { useT } from '../../i18n/useT';
+import { formatDisplay } from '../../api/currency';
+import { useI18n } from '../../i18n/useT';
 
 const vibeKey = (v) => (v ? `enums.vibe.${v}` : null);
 
@@ -41,7 +42,7 @@ const toTile = (m) => ({
 });
 
 export default function MemberProfile() {
-  const t = useT();
+  const { t, lang } = useI18n();
   const { userId } = useParams();
   const navigate = useNavigate();
   const { message } = App.useApp();
@@ -270,6 +271,19 @@ export default function MemberProfile() {
                     </li>
                   ))}
                 </ul>
+
+                {/* Her price, not a platform-wide one. Shown before the
+                    button so nobody has to open a modal to find out. */}
+                {profile.unlockPriceDisplay && (
+                  <div className="unlock-price">
+                    <span className="unlock-price-amount">
+                      {formatDisplay(profile.unlockPriceDisplay, profile.currency, lang)}
+                    </span>
+                    <span className="unlock-price-note">
+                      {t('profile.oneTimeForEverything', { username: profile.username })}
+                    </span>
+                  </div>
+                )}
 
                 <Button block size="large" type="primary" icon={<UnlockOutlined />} onClick={wantAccess}>
                   {t('profile.getAccess')}

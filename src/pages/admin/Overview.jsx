@@ -6,7 +6,6 @@ import {
   CheckCircleFilled,
   DollarOutlined,
   IdcardOutlined,
-  PictureOutlined,
 } from '@ant-design/icons';
 import { adminApi } from '../../api';
 import { isAdmin, useAuth } from '../../store/auth';
@@ -27,12 +26,11 @@ export default function Overview() {
   const [counts, setCounts] = useState(null);
 
   const load = useCallback(async () => {
-    const [kyc, media, payments] = await Promise.all([
+    const [kyc, payments] = await Promise.all([
       adminApi.kycQueueCount().catch(() => 0),
-      adminApi.takenDownCount().catch(() => 0),
       isAdmin(user) ? adminApi.pendingPurchaseCount().catch(() => 0) : Promise.resolve(0),
     ]);
-    setCounts({ kyc: countOf(kyc), media: countOf(media), payments: countOf(payments) });
+    setCounts({ kyc: countOf(kyc), payments: countOf(payments) });
   }, [user]);
 
   useEffect(() => {
@@ -51,14 +49,6 @@ export default function Overview() {
       body: t('admin.kycBody'),
       count: counts.kyc,
       to: '/admin/kyc',
-    },
-    {
-      key: 'media',
-      icon: <PictureOutlined />,
-      title: t('admin.mediaTitle'),
-      body: t('admin.mediaBody'),
-      count: counts.media,
-      to: '/admin/media',
     },
     ...(isAdmin(user)
       ? [

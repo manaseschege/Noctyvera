@@ -1,20 +1,42 @@
 import { create } from 'zustand';
 import { authApi, billingApi } from '../api';
-import { ACTIVATION, NEXT_STEP, ROLES, VERIFICATION } from '../api/config';
+import { ACCOUNT_TYPE, NEXT_STEP, ROLES, VERIFICATION } from '../api/config';
 import { onAuthExpired, tokens } from '../api/http';
 
 /**
  * Session state.
  *
- * The server is the authority on where a user is in onboarding: `/me`
- * returns `nextStep`, `verificationStatus` and `canPostMedia`, and the
- * app routes off those rather than keeping its own state machine.
+ * The server is the authority on where a user is: `/me` returns `nextStep`,
+ * `accountType`, `verificationStatus` and `canPostMedia`, and the app routes
+ * off those rather than keeping its own state machine.
+ *
+ * ── Two kinds of account, two entirely different shapes ────────
+ *
+ * A **viewer** signs up and is finished. No profile, no documents, no
+ * subscription to enter. They land on the feed and pay per creator, and
+ * every guard below has to let them straight through — the old behaviour,
+ * where everybody had to buy a monthly plan to see anything at all, is
+ * what made a one-creator visit cost as much as a whole platform.
+ *
+ * A **creator** walks profile → identity → package, and only the package
+ * gates publishing.
  */
 export const useAuth = create((set, get) => ({
   user: null,
   entitlements: null,
-  /** Guards must not decide on activation until this is true. */
+  /** Guards must not decide on access until this is true. */
   entitlementsLoaded: false,
+
+  /** Creator publishing rights. Null for viewers, who never need one. */
+  packageStatus: null,
+  packageLoaded: false,
+
+  /**
+   * An outstanding sign-in code. Set by login() when the server asks for
+   * one, cleared once it is answered.
+   */
+  challenge: null,
+
   /** True until the first /me resolves, so guards don't bounce on reload. */
   booting: tokens.access || tokens.refresh ? true : false,
   busy: false,
@@ -27,8 +49,8 @@ export const useAuth = create((set, get) => ({
     try {
       const user = await authApi.me();
       set({ user });
-      if (user) await get().loadEntitlements();
-      else set({ entitlementsLoaded: true });
+      if (user) await get().loadAccess(user);
+      else set({ entitlementsLoaded: true, packageLoaded: true });
       return user;
     } catch {
       set({ user: null });
@@ -38,26 +60,62 @@ export const useAuth = create((set, get) => ({
     }
   },
 
+  /**
+   * Step one of signing in.
+   *
+   * Resolves to `{ otpRequired: true }` when a code has been emailed — the
+   * caller shows the code screen and calls verifyCode() next. Resolves to
+   * `{ otpRequired: false, user }` where codes are switched off.
+   */
   async login(credentials) {
     set({ busy: true });
     try {
-      await authApi.login(credentials);
-      const user = await authApi.me();
-      set({ user });
-      await get().loadEntitlements();
+      const res = await authApi.login(credentials);
+      if (res.otpRequired) {
+        set({ challenge: res.challenge });
+        return { otpRequired: true, challenge: res.challenge };
+      }
+      const user = await get().adopt();
+      return { otpRequired: false, user };
+    } finally {
+      set({ busy: false });
+    }
+  },
+
+  /** Step two. Exchanges the emailed code for a session. */
+  async verifyCode(code) {
+    const { challenge } = get();
+    if (!challenge) throw new Error('That sign-in attempt has expired. Start again.');
+
+    set({ busy: true });
+    try {
+      await authApi.verifyOtp({ ...challenge, code });
+      const user = await get().adopt();
+      set({ challenge: null });
       return user;
     } finally {
       set({ busy: false });
     }
   },
 
+  /** Sends a fresh code for the outstanding challenge. */
+  async resendCode() {
+    const { challenge } = get();
+    if (!challenge) throw new Error('That sign-in attempt has expired. Start again.');
+    const next = await authApi.resendOtp(challenge.challengeId);
+    // The id is stable; the expiry is not.
+    set({ challenge: { ...challenge, ...next, email: challenge.email } });
+    return next;
+  },
+
+  clearChallenge: () => set({ challenge: null }),
+
   async register(payload) {
     set({ busy: true });
     try {
-      const auth = await authApi.register(payload);
-      const user = await authApi.me();
-      set({ user });
-      return { user, auth };
+      const res = await authApi.register(payload);
+      const user = await get().adopt();
+      return { user, ...res };
     } finally {
       set({ busy: false });
     }
@@ -65,7 +123,14 @@ export const useAuth = create((set, get) => ({
 
   async logout() {
     await authApi.logout();
-    set({ user: null, entitlements: null, entitlementsLoaded: false });
+    set({
+      user: null,
+      entitlements: null,
+      entitlementsLoaded: false,
+      packageStatus: null,
+      packageLoaded: false,
+      challenge: null,
+    });
   },
 
   /** Re-read /me — call after profile save, KYC submit, or an approval. */
@@ -75,15 +140,52 @@ export const useAuth = create((set, get) => ({
     return user;
   },
 
+  /** Reads /me and everything that depends on who the user turns out to be. */
+  async adopt() {
+    const user = await authApi.me();
+    set({ user });
+    if (user) await get().loadAccess(user);
+    return user;
+  },
+
+  /**
+   * Loads whichever access facts this account actually has.
+   *
+   * A viewer has entitlements and no package; a creator has both. Asking for
+   * a package as a viewer is a guaranteed 403, so it is skipped rather than
+   * caught.
+   */
+  async loadAccess(user) {
+    const who = user ?? get().user;
+    const jobs = [get().loadEntitlements()];
+    if (who && who.accountType === ACCOUNT_TYPE.CREATOR) {
+      jobs.push(get().loadPackage());
+    } else {
+      set({ packageStatus: null, packageLoaded: true });
+    }
+    await Promise.all(jobs);
+  },
+
   async loadEntitlements() {
     try {
       const entitlements = await billingApi.entitlements();
       set({ entitlements, entitlementsLoaded: true });
       return entitlements;
     } catch {
-      // Treat an unreadable entitlement as "not activated" rather than
+      // Treat an unreadable entitlement as "not unlocked" rather than
       // letting someone through on a network blip.
       set({ entitlementsLoaded: true });
+      return null;
+    }
+  },
+
+  async loadPackage() {
+    try {
+      const packageStatus = await billingApi.myPackage();
+      set({ packageStatus, packageLoaded: true });
+      return packageStatus;
+    } catch {
+      set({ packageLoaded: true });
       return null;
     }
   },
@@ -95,7 +197,15 @@ export const useAuth = create((set, get) => ({
 }));
 
 /* Bounce to a signed-out state when a refresh token finally dies. */
-onAuthExpired(() => useAuth.setState({ user: null, entitlements: null, entitlementsLoaded: false }));
+onAuthExpired(() =>
+  useAuth.setState({
+    user: null,
+    entitlements: null,
+    entitlementsLoaded: false,
+    packageStatus: null,
+    packageLoaded: false,
+  }),
+);
 
 /* ── Role & status helpers ─────────────────────────────────────── */
 
@@ -104,26 +214,38 @@ export const isModerator = (u) => u?.role === ROLES.MODERATOR;
 /** Anyone who can open the staff console. */
 export const isStaff = (u) => isAdmin(u) || isModerator(u);
 
+export const isCreator = (u) => u?.accountType === ACCOUNT_TYPE.CREATOR;
+/** Anyone who is not a creator is here to watch, which is most people. */
+export const isViewer = (u) => Boolean(u) && !isCreator(u);
+
 export const isVerified = (u) => u?.verificationStatus === VERIFICATION.APPROVED;
 export const canPost = (u) => Boolean(u?.canPostMedia);
 export const isSuspended = (u) => u?.status === 'SUSPENDED' || u?.status === 'DEACTIVATED';
 
-export const isActivated = (entitlements) => ACTIVATION.isActivated(entitlements);
-
 /**
- * Identity approved but the activation payment hasn't gone through, so the
- * app stays shut. Staff are exempt.
+ * A verified creator who has not bought a package yet.
+ *
+ * Only ever true for creators. A viewer buying a publishing package would be
+ * paying for something they will never use.
  */
-export function needsActivation(user, entitlements) {
-  if (!user || isStaff(user)) return false;
-  if (user.nextStep !== NEXT_STEP.DONE) return false;
-  return !isActivated(entitlements);
+export function needsPackage(user, packageStatus) {
+  if (!user || isStaff(user) || !isCreator(user)) return false;
+  if (!isVerified(user)) return false;
+  // Absent status means it could not be read; assume covered rather than
+  // pushing a paying creator at a payment screen on a network blip.
+  if (!packageStatus) return false;
+  if (!packageStatus.packagesRequired) return false;
+  return !packageStatus.active;
 }
 
 /** Where a signed-in user belongs right now. */
-export function homeFor(user, entitlements) {
+export function homeFor(user, access = {}) {
   if (!user) return '/';
   if (isStaff(user)) return '/admin';
+
+  // Viewers are done the moment they have an account.
+  if (!isCreator(user)) return '/discover';
+
   switch (user.nextStep) {
     case NEXT_STEP.CREATE_PROFILE:
       return '/onboarding/profile';
@@ -132,14 +254,16 @@ export function homeFor(user, entitlements) {
       return '/onboarding/verify';
     case NEXT_STEP.AWAIT_REVIEW:
       return '/onboarding/status';
+    case NEXT_STEP.BROWSE:
+      return '/discover';
     default:
-      // Every verified member can post, so the studio is their home.
-      return isActivated(entitlements) ? '/studio' : '/onboarding/activate';
+      return needsPackage(user, access.packageStatus) ? '/onboarding/package' : '/studio';
   }
 }
 
-/** True when onboarding is finished and the app proper is available. */
-export const onboardingComplete = (u) => !u || u.nextStep === NEXT_STEP.DONE;
+/** True when there is nothing left in the onboarding funnel. */
+export const onboardingComplete = (u) =>
+  !u || !isCreator(u) || u.nextStep === NEXT_STEP.DONE || u.nextStep === NEXT_STEP.BROWSE;
 
 export const ROLE_LABEL = {
   [ROLES.USER]: 'Member',

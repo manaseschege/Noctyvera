@@ -1023,3 +1023,393 @@ body::before {
     flex-basis: 172px;
   }
 }
+
+/* ══════════════════════════════════════════════════════════
+   One-time codes
+   ══════════════════════════════════════════════════════════ */
+
+.code-input {
+  display: flex;
+  gap: 10px;
+}
+.code-cell {
+  flex: 1;
+  min-width: 0;
+  height: 58px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  outline: none;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+  /* iOS zooms into any input under 16px on focus; 24px is safely clear. */
+  -webkit-appearance: none;
+  appearance: none;
+}
+.code-cell:focus {
+  border-color: var(--gold);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+.code-cell:disabled {
+  opacity: 0.55;
+}
+@media (max-width: 420px) {
+  .code-input {
+    gap: 7px;
+  }
+  .code-cell {
+    height: 50px;
+    font-size: 20px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Watch-or-create picker
+   ══════════════════════════════════════════════════════════ */
+
+.intent-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.intent-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 15px 14px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+  font: inherit;
+}
+.intent-option:hover {
+  border-color: var(--gold-dim);
+  transform: translateY(-1px);
+}
+.intent-option.is-active {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+}
+.intent-option > .anticon {
+  font-size: 17px;
+  color: var(--gold);
+  margin-bottom: 4px;
+}
+.intent-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.intent-sub {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+@media (max-width: 420px) {
+  .intent-picker {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Creator packages
+   ══════════════════════════════════════════════════════════ */
+
+.package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.package-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 20px 20px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  font: inherit;
+  /* The accent is the package's own colour, set inline per card. */
+  border-top: 3px solid var(--pkg-accent, var(--gold));
+}
+.package-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--pkg-accent, var(--gold));
+}
+.package-card.is-active {
+  border-color: var(--pkg-accent, var(--gold));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--pkg-accent, #d9b46a) 30%, transparent);
+  background: var(--surface-hover);
+}
+.package-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.package-flag {
+  position: absolute;
+  top: -1px;
+  right: 14px;
+  transform: translateY(-50%);
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b0a0e;
+  background: var(--pkg-accent, var(--gold));
+}
+.package-flag-held {
+  color: var(--text);
+  background: var(--line);
+}
+.package-name {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--pkg-accent, var(--gold));
+}
+.package-tagline {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.package-price {
+  margin: 16px 0 4px;
+  font-size: 25px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.package-period {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.package-allowance {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.package-allowance li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text);
+}
+.package-allowance li > .anticon {
+  color: var(--pkg-accent, var(--gold));
+  font-size: 12px;
+}
+/* Struck through rather than hidden: "silver has no photos" is the fact
+   that makes silver cheaper, and hiding it is how somebody buys wrong. */
+.package-allowance li.is-excluded {
+  color: var(--text-faint);
+  text-decoration: line-through;
+  text-decoration-color: var(--line);
+}
+.package-allowance li.is-excluded > .anticon {
+  color: var(--text-faint);
+}
+
+/* ── Allowance meters in the studio ────────────────────── */
+
+.allowance-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.allowance-card {
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.allowance-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 12px;
+}
+.allowance-icon {
+  color: var(--gold);
+  font-size: 14px;
+}
+.allowance-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.allowance-count {
+  margin-left: auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.allowance-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Per-creator pricing
+   ══════════════════════════════════════════════════════════ */
+
+/* Always on, never behind hover: on a touch device there is no hover, so a
+   hover-only price is a price nobody on a phone ever sees. */
+.creator-card-price {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #0b0a0e;
+  background: var(--gold);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+.creator-card-flags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.creator-card-unlock-hint {
+  margin-left: auto;
+  color: var(--gold-bright);
+  font-weight: 600;
+}
+.unlock-price {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: var(--gold-wash);
+  border: 1px solid rgba(217, 180, 106, 0.3);
+}
+.unlock-price-amount {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--gold-bright);
+}
+.unlock-price-note {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* The creator half of the landing page: warmer than the surrounding
+   sections, so the page visibly turns to address a second audience. */
+.creator-pitch {
+  background:
+    radial-gradient(900px 380px at 78% 50%, rgba(217, 180, 106, 0.07), transparent 70%),
+    var(--bg-elevated);
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+/* No card is selected here — it is a shop window, not a form. */
+.creator-pitch .package-card.is-active {
+  box-shadow: none;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Interaction fixes that only show up off a mouse
+   ══════════════════════════════════════════════════════════ */
+
+/* Cards reveal their detail on hover. A touch device has no hover, so that
+   detail was simply unreachable — the bio and the counts never appeared at
+   all. Where hover is unavailable, the reveal is just open. */
+@media (hover: none) {
+  .creator-card-reveal {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+  .creator-card:hover {
+    transform: none;
+  }
+}
+
+/* Keyboard navigation needs a visible target. The reveal already responded to
+   :focus-visible, but nothing drew a ring, so a keyboard user could not see
+   which card they were on. */
+.creator-card:focus-visible,
+.package-card:focus-visible,
+.intent-option:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* Respect a system-level request for less movement. The card lift, the image
+   zoom and the reveal are all decoration; none of them carry meaning. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .creator-card:hover {
+    transform: none;
+  }
+  .creator-card:hover .creator-card-media img {
+    transform: none;
+  }
+}
+
+/* A neutral counterpart to .pill-gold, for facts that are not the sell. */
+.pill-dark {
+  background: rgba(8, 7, 10, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Discover
+   ══════════════════════════════════════════════════════════ */
+
+/* The filter bar follows the grid down. Reaching a city filter should not
+   mean scrolling back past a hundred cards to find it. */
+.filter-bar {
+  position: sticky;
+  top: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 14px 16px;
+  margin-bottom: 26px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: rgba(17, 16, 23, 0.86);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.36);
+}
+@media (max-width: 640px) {
+  .filter-bar {
+    /* Not sticky on a phone: it would eat a third of a short viewport. */
+    position: static;
+    padding: 12px;
+  }
+}

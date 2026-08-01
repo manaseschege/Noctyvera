@@ -1,10 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Alert, App, Button, Col, DatePicker, Form, Input, Row, Select, Skeleton, Switch, Tag, Tooltip } from 'antd';
+import {
+  Alert,
+  App,
+  Button,
+  Col,
+  DatePicker,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Select,
+  Skeleton,
+  Switch,
+  Tag,
+  Tooltip,
+} from 'antd';
 import { LogoutOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { authApi } from '../../api';
 import { GENDERS, VERIFICATION, VIBES, localiseOptions } from '../../api/config';
+import { currencyCode, fromMinor, toMinor } from '../../api/currency';
 import {
   STATUS_COLOR,
   VERIFICATION_COLOR,
@@ -40,9 +56,15 @@ export default function MyAccount() {
           country: p.country,
           vibe: p.vibe,
           discoverable: p.discoverable,
+          // Shown in major units; the API speaks minor ones.
+          unlockPrice: p.unlockPriceMinor == null ? undefined : fromMinor(p.unlockPriceMinor, p.currency),
         });
       })
-      .catch((e) => message.error(e.message))
+      // A viewer has no profile, and that is not an error worth shouting
+      // about — the profile card below simply does not render for them.
+      .catch((e) => {
+        if (e.status !== 404) message.error(e.message);
+      })
       .finally(() => setLoading(false));
   }, [form, message]);
 
@@ -58,6 +80,9 @@ export default function MyAccount() {
         country: v.country,
         vibe: v.vibe,
         discoverable: v.discoverable,
+        // Omitted rather than sent as null when untouched, so the server
+        // leaves whatever price is already set alone.
+        ...(v.unlockPrice == null ? {} : { unlockPriceMinor: toMinor(v.unlockPrice, profile?.currency) }),
       });
       setProfile(updated);
       await refresh();
@@ -180,8 +205,9 @@ export default function MyAccount() {
           </div>
         </Col>
 
+        {/* Viewers have no public profile, so there is nothing here to edit. */}
         <Col xs={24} lg={15}>
-          <div className="glass" style={{ padding: 24 }}>
+          <div className="glass" style={{ padding: 24, display: profile ? undefined : 'none' }}>
             <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>{t('account.profile')}</h3>
             <Form form={form} layout="vertical" requiredMark={false} onFinish={save}>
               <Form.Item name="displayName" label={t('onboarding.displayName')}>
@@ -220,6 +246,24 @@ export default function MyAccount() {
 
               <Form.Item name="vibe" label={t('onboarding.vibe')}>
                 <Select options={localiseOptions(VIBES, t)} allowClear />
+              </Form.Item>
+
+              <Form.Item
+                name="unlockPrice"
+                label={t('account.yourPrice')}
+                extra={
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    {t('account.yourPriceHint')}
+                  </span>
+                }
+              >
+                <InputNumber
+                  min={0}
+                  step={1}
+                  style={{ width: '100%', maxWidth: 260 }}
+                  prefix={currencyCode(profile?.currency)}
+                  placeholder={t('account.yourPricePlaceholder')}
+                />
               </Form.Item>
 
               <Form.Item

@@ -1,14 +1,36 @@
-import { NEXT_STEP, VERIFICATION } from './config';
+import { ACCOUNT_TYPE, NEXT_STEP, VERIFICATION } from './config';
 import { http, tokens } from './http';
+
+/**
+ * Auth + identity.
+ *
+ * ── Signing in takes two calls ─────────────────────────────────
+ *   POST /auth/login       -> { otpRequired, challengeId, maskedEmail }
+ *   POST /auth/otp/verify  -> AuthResponse (tokens)
+ *
+ * A correct password does not produce a session on its own. It produces a
+ * challenge, and a six-digit code goes to the address on the account. Only
+ * that code exchanges for tokens.
+ *
+ * When `otpRequired` is false, codes are switched off in that environment
+ * and the tokens are already in `auth` — `login()` below normalises both
+ * shapes so callers branch once.
+ *
+ * ── Registering takes one ──────────────────────────────────────
+ *   POST /auth/register    -> { auth, emailVerification }
+ *
+ * The account is signed in immediately. A confirmation code is sent
+ * alongside, but nothing waits on it: somebody who came to look at one
+ * creator should be looking at her seconds after submitting the form.
+ */
 
 /**
  * The last AuthResponse, kept so the app can still work when GET /me is
  * unavailable. login/register return the same identity fields, so we can
  * reconstruct the session from them.
  *
- * BACKEND BUG (2026-07-29): GET /me returns 500 for any account that has
- * a profile — reproducible, and it survives a fresh login. Remove this
- * fallback once /me is fixed.
+ * BACKEND BUG (2026-07-29): GET /me returned 500 for any account that has
+ * a profile. Remove this fallback once that is confirmed fixed.
  */
 const IDENTITY_KEY = 'nightgals.identity';
 
@@ -29,7 +51,9 @@ const readIdentity = () => {
 };
 
 /** Derive the onboarding step the server would have reported. */
-function deriveNextStep({ profileComplete, verificationStatus }) {
+function deriveNextStep({ accountType, profileComplete, verificationStatus }) {
+  // A viewer has nothing to complete, ever.
+  if (accountType !== ACCOUNT_TYPE.CREATOR) return NEXT_STEP.BROWSE;
   if (!profileComplete) return NEXT_STEP.CREATE_PROFILE;
   switch (verificationStatus) {
     case VERIFICATION.APPROVED:
@@ -64,43 +88,94 @@ async function reconstructMe() {
     /* 404 simply means no profile yet */
   }
 
+  const accountType = id.accountType ?? ACCOUNT_TYPE.VIEWER;
+
   return {
     id: id.userId,
     email: id.email ?? null,
     username,
+    accountType,
     role: id.role,
     status: 'ACTIVE',
     verificationStatus,
+    emailVerified: id.emailVerified ?? false,
     profileComplete,
     canPostMedia: verificationStatus === VERIFICATION.APPROVED,
-    nextStep: deriveNextStep({ profileComplete, verificationStatus }),
+    nextStep: deriveNextStep({ accountType, profileComplete, verificationStatus }),
     degraded: true, // the UI can note that /me was unavailable
   };
 }
 
+/** Stores tokens and caches identity from an AuthResponse. */
+function acceptSession(auth, email) {
+  tokens.set(auth);
+  cacheIdentity(email ? { ...auth, email } : auth);
+  return auth;
+}
+
+/* ── Registration ──────────────────────────────────────────────── */
+
 /**
- * Auth + identity.
- *
- *   POST /auth/register  -> AuthResponse (username is server-generated)
- *   POST /auth/login     -> AuthResponse
- *   POST /auth/refresh   -> AuthResponse   (handled inside http.js)
- *   POST /auth/logout    -> revokes this refresh token
- *   GET  /me             -> MeResponse
+ * @param accountType VIEWER (default) or CREATOR — decides the whole path
+ *                    the app puts them on afterwards.
+ * @returns { auth, emailVerification } — `auth` already holds working tokens
  */
-
-export async function register({ email, password }) {
-  const auth = await http.post('/auth/register', { email, password }, { auth: false });
-  tokens.set(auth);
-  cacheIdentity({ ...auth, email });
-  return auth;
+export async function register({ email, password, accountType = ACCOUNT_TYPE.VIEWER }) {
+  const res = await http.post('/auth/register', { email, password, accountType }, { auth: false });
+  acceptSession(res.auth, email);
+  return res;
 }
 
+/* ── Sign-in ───────────────────────────────────────────────────── */
+
+/**
+ * Step one. Checks the password and sends the code.
+ *
+ * Normalised so callers branch on one field:
+ *   { otpRequired: true,  challenge: {...} }   show the code screen
+ *   { otpRequired: false, auth: {...} }        already signed in
+ */
 export async function login({ email, password }) {
-  const auth = await http.post('/auth/login', { email, password }, { auth: false });
-  tokens.set(auth);
-  cacheIdentity({ ...auth, email });
-  return auth;
+  const res = await http.post('/auth/login', { email, password }, { auth: false });
+
+  if (res.otpRequired) {
+    return {
+      otpRequired: true,
+      challenge: {
+        challengeId: res.challengeId,
+        expiresAt: res.expiresAt,
+        maskedEmail: res.maskedEmail,
+        codeLength: res.codeLength,
+        // Kept so the session can be cached under the right address once the
+        // code comes back — the server only ever returns it masked.
+        email,
+      },
+    };
+  }
+
+  return { otpRequired: false, auth: acceptSession(res.auth, email) };
 }
+
+/** Step two. Exchanges the emailed code for a session. */
+export async function verifyOtp({ challengeId, code, email }) {
+  const auth = await http.post('/auth/otp/verify', { challengeId, code }, { auth: false });
+  return acceptSession(auth, email);
+}
+
+/** Sends a fresh code. The previous one stops working immediately. */
+export const resendOtp = (challengeId) =>
+  http.post('/auth/otp/resend', { challengeId }, { auth: false });
+
+/* ── Email confirmation ────────────────────────────────────────── */
+
+/** Answers the challenge from registration. Optional — nothing is gated on it. */
+export const verifyEmail = ({ challengeId, code }) =>
+  http.post('/auth/email/verify', { challengeId, code }, { auth: false });
+
+/** A new confirmation code, for a signed-in user who never finished. */
+export const requestEmailCode = () => http.post('/auth/email/request-code');
+
+/* ── Session ───────────────────────────────────────────────────── */
 
 export async function logout() {
   const refreshToken = tokens.refresh;
@@ -132,8 +207,8 @@ export async function me() {
     return await http.get('/me');
   } catch (e) {
     if (e.status === 401) return null;
-    // /me is currently 500ing for accounts that have a profile. Rebuild the
-    // session from what we already know rather than locking the user out.
+    // Rebuild the session from what we already know rather than locking the
+    // user out over a server-side error.
     if (e.status >= 500) {
       const fallback = await reconstructMe();
       if (fallback) return fallback;
@@ -144,11 +219,17 @@ export async function me() {
 
 export const hasSession = () => Boolean(tokens.access || tokens.refresh);
 
+/** Turns a viewer account into a creator one. Keeps handle, purchases, history. */
+export const becomeCreator = () => http.post('/me/become-creator');
+
 /* ── Profile ───────────────────────────────────────────────────── */
 
 export const getProfile = () => http.get('/me/profile');
 
-/** PUT /me/profile — dateOfBirth and gender are required by the server. */
+/**
+ * PUT /me/profile — dateOfBirth and gender are required by the server.
+ * `unlockPriceMinor` is optional; omitting it leaves the existing price alone.
+ */
 export const saveProfile = (profile) => http.put('/me/profile', profile);
 
 /* ── Username ──────────────────────────────────────────────────── */

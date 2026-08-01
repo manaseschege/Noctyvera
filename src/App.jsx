@@ -15,12 +15,13 @@ import HowItWorks from './pages/public/HowItWorks';
 import NotFound from './pages/public/NotFound';
 
 import Login from './pages/auth/Login';
+import VerifyCode from './pages/auth/VerifyCode';
 import Register from './pages/auth/Register';
 
 import CreateProfile from './pages/onboarding/CreateProfile';
 import Verify from './pages/onboarding/Verify';
 import OnboardingStatus from './pages/onboarding/Status';
-import Activate from './pages/onboarding/Activate';
+import ChoosePackage from './pages/onboarding/ChoosePackage';
 
 import Discover from './pages/app/Discover';
 import MemberProfile from './pages/app/MemberProfile';
@@ -31,12 +32,12 @@ import StudioLayout from './pages/me/StudioLayout';
 import Studio from './pages/me/Studio';
 import MyMedia from './pages/me/MyMedia';
 import MyLive from './pages/me/MyLive';
+import MyPackage from './pages/me/MyPackage';
 import MyBilling from './pages/me/MyBilling';
 import MyAccount from './pages/me/MyAccount';
 
 import Overview from './pages/admin/Overview';
 import KycQueue from './pages/admin/KycQueue';
-import MediaQueue from './pages/admin/MediaQueue';
 import Payments from './pages/admin/Payments';
 
 function ScrollToTop() {
@@ -52,16 +53,21 @@ export default function App() {
     <>
       <ScrollToTop />
       <Routes>
-        {/* ── Auth ── */}
+        {/* ── Auth ──
+            Signing in is two screens: password, then the emailed code. */}
         <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
+        <Route path="/verify" element={<RedirectIfAuthed><VerifyCode /></RedirectIfAuthed>} />
         <Route path="/join" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />
 
-        {/* ── Onboarding funnel — order is driven by /me.nextStep ── */}
+        {/* ── Creator onboarding — order is driven by /me.nextStep ──
+            Viewers never see any of this; the guard sends them to the feed. */}
         <Route element={<RequireOnboarding />}>
           <Route path="/onboarding/profile" element={<CreateProfile />} />
           <Route path="/onboarding/verify" element={<Verify />} />
           <Route path="/onboarding/status" element={<OnboardingStatus />} />
-          <Route path="/onboarding/activate" element={<Activate />} />
+          <Route path="/onboarding/package" element={<ChoosePackage />} />
+          {/* The old blanket-subscription gate lived here. */}
+          <Route path="/onboarding/activate" element={<Navigate to="/onboarding/package" replace />} />
         </Route>
 
         {/* ── Site ── */}
@@ -77,10 +83,9 @@ export default function App() {
           <Route path="live" element={<LiveDirectory />} />
           <Route path="live/:sessionId" element={<LiveRoom />} />
 
-          {/* Signed-in members */}
+          {/* Signed-in members, viewers included */}
           <Route element={<RequireOnboarded />}>
-            {/* The studio is the one dashboard — keep the old path working. */}
-            <Route path="home" element={<Navigate to="/studio" replace />} />
+            <Route path="home" element={<Navigate to="/discover" replace />} />
             <Route path="me/billing" element={<MyBilling />} />
             <Route path="me/account" element={<MyAccount />} />
           </Route>
@@ -88,12 +93,13 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
 
-        {/* ── Member dashboard — persistent sidebar, verified members only ── */}
+        {/* ── Creator studio — persistent sidebar, verified creators only ── */}
         <Route element={<RequireVerified />}>
           <Route path="/studio" element={<StudioLayout />}>
             <Route index element={<Studio />} />
             <Route path="media" element={<MyMedia />} />
             <Route path="live" element={<MyLive />} />
+            <Route path="packages" element={<MyPackage />} />
             <Route path="billing" element={<MyBilling />} />
             <Route path="account" element={<MyAccount />} />
             <Route path="*" element={<Navigate to="/studio" replace />} />
@@ -109,7 +115,6 @@ export default function App() {
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Overview />} />
             <Route path="kyc" element={<KycQueue />} />
-            <Route path="media" element={<MediaQueue />} />
             <Route path="payments" element={<Payments />} />
             <Route path="*" element={<Navigate to="/admin/kyc" replace />} />
           </Route>

@@ -33,6 +33,15 @@ export const fromMinor = (minor, code) =>
   (Number(minor) || 0) / (isZeroDecimal(code) ? 1 : 100);
 
 /**
+ * Major units -> minor, for sending a price the user typed back to the API.
+ *
+ * Rounded, because 12.005 in a number input must not become 1200.4999 cents
+ * and be rejected by a validator that expects an integer.
+ */
+export const toMinor = (amount, code) =>
+  Math.round((Number(amount) || 0) * (isZeroDecimal(code) ? 1 : 100));
+
+/**
  * Format an amount already in major units.
  * `lang` picks the grouping/decimal separators — French uses a space and
  * a comma where English uses a comma and a point.
