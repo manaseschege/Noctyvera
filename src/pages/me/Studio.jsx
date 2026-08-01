@@ -124,11 +124,9 @@ export default function Studio() {
       key: 'billing',
       icon: <UnlockOutlined />,
       title: t('nav.accessPayments'),
-      count: entitlements?.subscribed ? t('studio.subActive') : entitlements?.unlockedMembers?.length ?? 0,
-      unit: entitlements?.subscribed ? t('studio.subUnit') : t('studio.unlockedUnit'),
-      body: entitlements?.subscribed
-        ? t('studio.subBody')
-        : t('studio.billingBody'),
+      count: entitlements?.unlockedItems ?? 0,
+      unit: t('studio.unlockedUnit'),
+      body: t('studio.unlockedBody'),
       attention: false,
       action: t('common.view'),
       to: '/studio/billing',

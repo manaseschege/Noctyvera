@@ -8,7 +8,6 @@ import {
   DatePicker,
   Form,
   Input,
-  InputNumber,
   Row,
   Select,
   Skeleton,
@@ -20,7 +19,6 @@ import { LogoutOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-
 import dayjs from 'dayjs';
 import { authApi } from '../../api';
 import { GENDERS, VERIFICATION, VIBES, localiseOptions } from '../../api/config';
-import { currencyCode, fromMinor, toMinor } from '../../api/currency';
 import {
   STATUS_COLOR,
   VERIFICATION_COLOR,
@@ -31,14 +29,12 @@ import { useT } from '../../i18n/useT';
 
 export default function MyAccount() {
   const t = useT();
-  const [form] = Form.useForm();
   const { message } = App.useApp();
-  const { user, refresh, patchUser } = useAuth();
+  const { user, patchUser } = useAuth();
   const navigate = useNavigate();
 
-  const [, setProfile] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [rerolling, setRerolling] = useState(false);
   const [signingOutAll, setSigningOutAll] = useState(false);
 
@@ -47,18 +43,6 @@ export default function MyAccount() {
       .getProfile()
       .then((p) => {
         setProfile(p);
-        form.setFieldsValue({
-          displayName: p.displayName,
-          bio: p.bio,
-          dateOfBirth: p.dateOfBirth ? dayjs(p.dateOfBirth) : undefined,
-          gender: p.gender,
-          city: p.city,
-          country: p.country,
-          vibe: p.vibe,
-          discoverable: p.discoverable,
-          // Shown in major units; the API speaks minor ones.
-          unlockPrice: p.unlockPriceMinor == null ? undefined : fromMinor(p.unlockPriceMinor, p.currency),
-        });
       })
       // A viewer has no profile, and that is not an error worth shouting
       // about — the profile card below simply does not render for them.
@@ -66,33 +50,7 @@ export default function MyAccount() {
         if (e.status !== 404) message.error(e.message);
       })
       .finally(() => setLoading(false));
-  }, [form, message]);
-
-  const save = async (v) => {
-    setSaving(true);
-    try {
-      const updated = await authApi.saveProfile({
-        displayName: v.displayName,
-        bio: v.bio,
-        dateOfBirth: dayjs(v.dateOfBirth).format('YYYY-MM-DD'),
-        gender: v.gender,
-        city: v.city,
-        country: v.country,
-        vibe: v.vibe,
-        discoverable: v.discoverable,
-        // Omitted rather than sent as null when untouched, so the server
-        // leaves whatever price is already set alone.
-        ...(v.unlockPrice == null ? {} : { unlockPriceMinor: toMinor(v.unlockPrice, profile?.currency) }),
-      });
-      setProfile(updated);
-      await refresh();
-      message.success(t('onboarding.profileSaved'));
-    } catch (e) {
-      message.error(e.fieldErrors ? Object.values(e.fieldErrors).join(' ') : e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
+  }, [message]);
 
   const reroll = async () => {
     setRerolling(true);
@@ -206,82 +164,124 @@ export default function MyAccount() {
         </Col>
 
         {/* Viewers have no public profile, so there is nothing here to edit. */}
-        <Col xs={24} lg={15}>
-          <div className="glass" style={{ padding: 24, display: profile ? undefined : 'none' }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>{t('account.profile')}</h3>
-            <Form form={form} layout="vertical" requiredMark={false} onFinish={save}>
-              <Form.Item name="displayName" label={t('onboarding.displayName')}>
-                <Input maxLength={40} />
-              </Form.Item>
-
-              <Form.Item name="bio" label={t('onboarding.bio')}>
-                <Input.TextArea rows={4} maxLength={400} showCount />
-              </Form.Item>
-
-              <Row gutter={14}>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="dateOfBirth" label={t('onboarding.dob')} rules={[{ required: true, message: t('common.required') }]}>
-                    <DatePicker style={{ width: '100%' }} />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="gender" label={t('onboarding.gender')} rules={[{ required: true, message: t('common.required') }]}>
-                    <Select options={localiseOptions(GENDERS, t)} />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Row gutter={14}>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="city" label={t('onboarding.city')}>
-                    <Input />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} sm={12}>
-                  <Form.Item name="country" label={t('onboarding.country')}>
-                    <Input />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item name="vibe" label={t('onboarding.vibe')}>
-                <Select options={localiseOptions(VIBES, t)} allowClear />
-              </Form.Item>
-
-              <Form.Item
-                name="unlockPrice"
-                label={t('account.yourPrice')}
-                extra={
-                  <span className="faint" style={{ fontSize: 12 }}>
-                    {t('account.yourPriceHint')}
-                  </span>
-                }
-              >
-                <InputNumber
-                  min={0}
-                  step={1}
-                  style={{ width: '100%', maxWidth: 260 }}
-                  prefix={currencyCode(profile?.currency)}
-                  placeholder={t('account.yourPricePlaceholder')}
-                />
-              </Form.Item>
-
-              <Form.Item
-                name="discoverable"
-                label={t('onboarding.discoverable')}
-                valuePropName="checked"
-                extra={<span className="faint" style={{ fontSize: 12 }}>{t('onboarding.discoverableHint')}</span>}
-              >
-                <Switch />
-              </Form.Item>
-
-              <Button type="primary" htmlType="submit" size="large" loading={saving}>
-                {t('common.saveChanges')}
-              </Button>
-            </Form>
-          </div>
-        </Col>
+        {profile && (
+          <Col xs={24} lg={15}>
+            <ProfileCard profile={profile} onSaved={setProfile} />
+          </Col>
+        )}
       </Row>
+    </div>
+  );
+}
+
+
+/**
+ * The public-profile editor.
+ *
+ * Its own component so `Form.useForm()` is only called where a `<Form>` exists.
+ * Living in the parent meant the instance was created during the loading
+ * skeleton and again for viewers, who have no profile to edit — antd warns
+ * about exactly that, and the warning was right.
+ */
+function ProfileCard({ profile, onSaved }) {
+  const t = useT();
+  const [form] = Form.useForm();
+  const { message } = App.useApp();
+  const { refresh } = useAuth();
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    form.setFieldsValue({
+      displayName: profile.displayName,
+      bio: profile.bio,
+      dateOfBirth: profile.dateOfBirth ? dayjs(profile.dateOfBirth) : undefined,
+      gender: profile.gender,
+      city: profile.city,
+      country: profile.country,
+      vibe: profile.vibe,
+      discoverable: profile.discoverable,
+    });
+  }, [form, profile]);
+
+  const save = async (v) => {
+    setSaving(true);
+    try {
+      const updated = await authApi.saveProfile({
+        displayName: v.displayName,
+        bio: v.bio,
+        dateOfBirth: dayjs(v.dateOfBirth).format('YYYY-MM-DD'),
+        gender: v.gender,
+        city: v.city,
+        country: v.country,
+        vibe: v.vibe,
+        discoverable: v.discoverable,
+      });
+      onSaved(updated);
+      await refresh();
+      message.success(t('onboarding.profileSaved'));
+    } catch (e) {
+      message.error(e.fieldErrors ? Object.values(e.fieldErrors).join(' ') : e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="glass" style={{ padding: 24 }}>
+      <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 18px' }}>{t('account.profile')}</h3>
+      <Form form={form} layout="vertical" requiredMark={false} onFinish={save}>
+        <Form.Item name="displayName" label={t('onboarding.displayName')}>
+          <Input maxLength={40} />
+        </Form.Item>
+
+        <Form.Item name="bio" label={t('onboarding.bio')}>
+          <Input.TextArea rows={4} maxLength={400} showCount />
+        </Form.Item>
+
+        <Row gutter={14}>
+          <Col xs={24} sm={12}>
+            <Form.Item name="dateOfBirth" label={t('onboarding.dob')} rules={[{ required: true, message: t('common.required') }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item name="gender" label={t('onboarding.gender')} rules={[{ required: true, message: t('common.required') }]}>
+              <Select options={localiseOptions(GENDERS, t)} />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Row gutter={14}>
+          <Col xs={24} sm={12}>
+            <Form.Item name="city" label={t('onboarding.city')}>
+              <Input />
+            </Form.Item>
+          </Col>
+          <Col xs={24} sm={12}>
+            <Form.Item name="country" label={t('onboarding.country')}>
+              <Input />
+            </Form.Item>
+          </Col>
+        </Row>
+
+        <Form.Item name="vibe" label={t('onboarding.vibe')}>
+          <Select options={localiseOptions(VIBES, t)} allowClear />
+        </Form.Item>
+
+
+        <Form.Item
+          name="discoverable"
+          label={t('onboarding.discoverable')}
+          valuePropName="checked"
+          extra={<span className="faint" style={{ fontSize: 12 }}>{t('onboarding.discoverableHint')}</span>}
+        >
+          <Switch />
+        </Form.Item>
+
+        <Button type="primary" htmlType="submit" size="large" loading={saving}>
+          {t('common.saveChanges')}
+        </Button>
+      </Form>
     </div>
   );
 }

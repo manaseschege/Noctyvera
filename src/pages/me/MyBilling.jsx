@@ -4,7 +4,6 @@ import { Alert, App, Button, Col, Row, Table, Tag } from 'antd';
 import { CheckCircleFilled, ClockCircleOutlined, UnlockOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { billingApi } from '../../api';
-import { humanDuration } from '../../api/billing';
 import { formatDisplay } from '../../api/currency';
 import { useI18n } from '../../i18n/useT';
 import { useAuth } from '../../store/auth';
@@ -18,8 +17,6 @@ export default function MyBilling() {
   const { message } = App.useApp();
   const navigate = useNavigate();
   const { entitlements, loadEntitlements } = useAuth();
-
-  const [plans, setPlans] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checkout, setCheckout] = useState(false);
@@ -27,8 +24,7 @@ export default function MyBilling() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [p, h] = await Promise.all([billingApi.plans(), billingApi.purchases()]);
-      setPlans(p);
+      const h = await billingApi.purchases();
       setHistory(Array.isArray(h) ? h : h?.content ?? []);
       await loadEntitlements();
     } catch (e) {
@@ -44,7 +40,6 @@ export default function MyBilling() {
 
   const ownedCount = entitlements?.unlockedItems ?? 0;
   const pending = history.filter((p) => p.status === 'PENDING');
-  const currency = plans?.currency;
 
   return (
     <div className="shell" style={{ paddingTop: 40, paddingBottom: 72 }}>
@@ -72,12 +67,12 @@ export default function MyBilling() {
             <div className="stat-value" style={{ color: entitlements?.onTrial ? 'var(--success)' : 'var(--text-muted)', fontSize: 26 }}>
               {entitlements?.onTrial ? t('trial.active') : t('billing.payPerItem')}
             </div>
-            {entitlements?.subscribed && entitlements.subscriptionExpiresAt && (
+            {entitlements?.onTrial && entitlements.trialEndsAt && (
               <div className="stat-delta faint" style={{ fontWeight: 400 }}>
                 {t('billing.renews', { date: dayjs(entitlements.subscriptionExpiresAt).format('D MMM YYYY') })}
               </div>
             )}
-            {!entitlements?.subscribed && (
+            {!entitlements?.onTrial && (
               <Button size="small" type="primary" style={{ marginTop: 12 }} onClick={() => setCheckout(true)}>
                 {t('billing.subscribe')}
               </Button>
@@ -101,27 +96,21 @@ export default function MyBilling() {
               {t('billing.plansSub')}
             </p>
 
-            {plans?.profileUnlock && (
-              <div className="kv-row">
-                <span className="k">{t('billing.singleUnlock')}</span>
-                <span className="v">
-                  {formatDisplay(plans.profileUnlock.priceDisplay, currency, lang)}
-                  <span className="faint" style={{ fontWeight: 400 }}> · {humanDuration(plans.profileUnlock.duration)}</span>
-                </span>
-              </div>
-            )}
-            {(plans?.subscriptions ?? []).map((p) => (
-              <div className="kv-row" key={p.code}>
-                <span className="k">{p.label}</span>
-                <span className="v">
-                  {formatDisplay(p.priceDisplay, currency, lang)}
-                  <span className="faint" style={{ fontWeight: 400 }}> · {humanDuration(p.duration)}</span>
-                </span>
-              </div>
-            ))}
+            <div className="kv-row">
+              <span className="k">{t('billing.everyVideo')}</span>
+              <span className="v">{t('billing.setByCreator')}</span>
+            </div>
+            <div className="kv-row">
+              <span className="k">{t('billing.everyBroadcast')}</span>
+              <span className="v">{t('billing.setByCreator')}</span>
+            </div>
+            <div className="kv-row">
+              <span className="k">{t('billing.privateCalls')}</span>
+              <span className="v">{t('billing.byDuration')}</span>
+            </div>
 
-            <Button block style={{ marginTop: 18 }} type="primary" onClick={() => setCheckout(true)}>
-              {t('billing.choosePlan')}
+            <Button block style={{ marginTop: 18 }} onClick={() => navigate('/discover')}>
+              {t('nav.browseMembers')}
             </Button>
           </div>
         </Col>
@@ -198,7 +187,7 @@ export default function MyBilling() {
               width: 160,
               render: (type, r) => (
                 <div>
-                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{type === 'PROFILE_UNLOCK' ? t('billing.profileUnlock') : t('billing.subscription')}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{t(`enums.purchaseType.${type}`)}</div>
                   {r.planCode && <div className="faint" style={{ fontSize: 11.5 }}>{r.planCode}</div>}
                 </div>
               ),

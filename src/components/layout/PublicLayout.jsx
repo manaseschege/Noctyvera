@@ -55,7 +55,7 @@ export default function PublicLayout() {
                 <Tag color={VERIFICATION_COLOR[user.verificationStatus]} style={{ marginInlineEnd: 0 }}>
                   {VERIFICATION_LABEL[user.verificationStatus]}
                 </Tag>
-                {entitlements?.subscribed && <Tag color="gold" style={{ marginInlineEnd: 0 }}>Subscribed</Tag>}
+                {entitlements?.onTrial && <Tag color="gold" style={{ marginInlineEnd: 0 }}>{t('trial.active')}</Tag>}
               </Space>
             </div>
           ),
@@ -102,7 +102,7 @@ export default function PublicLayout() {
 
           <Space size={10}>
             <LanguageToggle />
-            {user && !entitlements?.subscribed && (
+            {user && entitlements?.onTrial && (
               <Button
                 type="text"
                 icon={<UnlockOutlined />}

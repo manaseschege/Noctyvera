@@ -10,7 +10,7 @@ import {
   VideoCameraFilled,
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { membersApi } from '../../api';
+import { billingApi, membersApi } from '../../api';
 import { formatDisplay } from '../../api/currency';
 import { useI18n } from '../../i18n/useT';
 import { BRAND } from '../../brand';
@@ -33,12 +33,10 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user, entitlements, packageStatus } = useAuth();
   const { t, lang } = useI18n();
-  const [plans, setPlans] = useState(null);
   const [packages, setPackages] = useState([]);
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    setPlans({});
     // The creator price list. Public, so the pitch below shows a real number
     // rather than "contact us".
     billingApi.creatorPackages().then(setPackages).catch(() => setPackages([]));
@@ -82,8 +80,7 @@ export default function Landing() {
                   </Space>
                 </motion.div>
 
-                {plans && (
-                  <motion.div variants={fadeUp} custom={4} className="hero-stats">
+                <motion.div variants={fadeUp} custom={4} className="hero-stats">
                     {/* Browsing is free and always has been; the old counter
                         here read a `freePreviewPhotos` field the API stopped
                         sending, so it rendered a blank number. */}
@@ -99,8 +96,7 @@ export default function Landing() {
                       <div className="hero-stat-value">{t('landing.perItemValue')}</div>
                       <div className="hero-stat-label">{t('landing.perItemLabel')}</div>
                     </div>
-                  </motion.div>
-                )}
+                </motion.div>
               </motion.div>
             </Col>
             <Col xs={0} lg={11}>

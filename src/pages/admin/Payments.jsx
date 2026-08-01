@@ -117,7 +117,7 @@ export default function Payments() {
                 title: t('adminQueue.purchase'),
                 render: (_, r) => (
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{r.type === 'PROFILE_UNLOCK' ? t('billing.profileUnlock') : t('billing.subscription')}</div>
+                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{t(`enums.purchaseType.${r.type}`)}</div>
                     <div className="faint" style={{ fontSize: 11.5, fontVariantNumeric: 'tabular-nums' }}>
                       {r.id}
                     </div>

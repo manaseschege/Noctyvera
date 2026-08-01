@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Col, Collapse, Row, Steps, Tag } from 'antd';
 import { IdcardOutlined, LockOutlined, SafetyCertificateOutlined, VideoCameraOutlined } from '@ant-design/icons';
 import { billingApi } from '../../api';
-import { humanDuration } from '../../api/billing';
 import { formatDisplay } from '../../api/currency';
 import { useAuth } from '../../store/auth';
 import { PageHeader, SectionHead } from '../../components/ui';
@@ -13,13 +12,15 @@ export default function HowItWorks() {
   const t = useT();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [plans, setPlans] = useState(null);
+  const [packages, setPackages] = useState([]);
 
   useEffect(() => {
-    billingApi.plans().then(setPlans).catch(() => {});
+    // The creator packages are what is on sale now; there is no platform-wide
+    // plan list, because viewers pay per item rather than by plan.
+    billingApi.creatorPackages().then(setPackages).catch(() => setPackages([]));
   }, []);
 
-  const currency = plans?.currency;
+  const cheapest = packages?.[0];
 
   const memberSteps = [
     { title: t('howItWorks.s1t'), description: t('howItWorks.s1d') },
@@ -43,8 +44,7 @@ export default function HowItWorks() {
       key: 'unlock-vs-sub',
       label: t('howItWorks.q3'),
       children: t('howItWorks.a3', {
-        duration: humanDuration(plans?.profileUnlock?.duration),
-        price: formatDisplay(plans?.profileUnlock?.priceDisplay, currency),
+        price: cheapest ? formatDisplay(cheapest.priceDisplay, cheapest.currency) : '',
       }),
     },
     {
@@ -94,32 +94,29 @@ export default function HowItWorks() {
               {t('howItWorks.payForWhat')}
             </h2>
 
-            {plans ? (
-              <>
-                {plans.profileUnlock && (
-                  <div className="kv-row">
-                    <span className="k">{t('howItWorks.oneProfile')}</span>
-                    <span className="v">
-                      {formatDisplay(plans.profileUnlock.priceDisplay, currency)}
-                      <span className="faint" style={{ fontWeight: 400 }}> · {humanDuration(plans.profileUnlock.duration)}</span>
-                    </span>
-                  </div>
-                )}
-                {(plans.subscriptions ?? []).map((p) => (
-                  <div className="kv-row" key={p.code}>
-                    <span className="k">{t('howItWorks.everyoneFor', { label: p.label })}</span>
-                    <span className="v">
-                      {formatDisplay(p.priceDisplay, currency)}
-                    </span>
-                  </div>
-                ))}
-                <p className="faint" style={{ fontSize: 12.5, lineHeight: 1.7, marginTop: 18, marginBottom: 0 }}>
-                  {t('howItWorks.phoneConfirm')}
-                </p>
-              </>
-            ) : (
-              <p className="muted" style={{ fontSize: 13.5 }}>{t('howItWorks.loadingPrices')}</p>
-            )}
+            <>
+              <div className="kv-row">
+                <span className="k">{t('howItWorks.oneVideo')}</span>
+                <span className="v">{t('howItWorks.priceSetByHer')}</span>
+              </div>
+              <div className="kv-row">
+                <span className="k">{t('howItWorks.oneBroadcast')}</span>
+                <span className="v">{t('howItWorks.priceSetByHer')}</span>
+              </div>
+              {cheapest && (
+                <div className="kv-row">
+                  <span className="k">{t('howItWorks.creatorPackages')}</span>
+                  <span className="v">
+                    {t('howItWorks.packagesFrom', {
+                      price: formatDisplay(cheapest.priceDisplay, cheapest.currency),
+                    })}
+                  </span>
+                </div>
+              )}
+              <p className="faint" style={{ fontSize: 12.5, lineHeight: 1.7, marginTop: 18, marginBottom: 0 }}>
+                {t('howItWorks.phoneConfirm')}
+              </p>
+            </>
 
             <div style={{ marginTop: 24 }}>
               <Button onClick={() => navigate(user ? '/me/billing' : '/join')}>
