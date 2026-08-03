@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Alert, App, Button, Spin, Tag } from 'antd';
 import { CheckCircleFilled, MobileOutlined, ThunderboltFilled } from '@ant-design/icons';
 import { billingApi } from '../../api';
+import { CREATOR_PACKAGES } from '../../api/config';
 import { formatDisplay } from '../../api/currency';
+import MomoNumberField from '../../components/MomoNumberField';
 import PackagePicker from '../../components/PackagePicker';
 import { useAuth } from '../../store/auth';
 import OnboardingShell from './OnboardingShell';
@@ -25,23 +27,30 @@ export default function ChoosePackage() {
   const { t, lang } = useI18n();
   const navigate = useNavigate();
   const { message } = App.useApp();
-  const { user, packageStatus, loadPackage } = useAuth();
+  const { user, packageStatus, loadPackage, entitlements } = useAuth();
 
   const [packages, setPackages] = useState(null);
   const [choice, setChoice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [checkout, setCheckout] = useState(null);
   const [failed, setFailed] = useState(null);
+  const [msisdn, setMsisdn] = useState(billingApi.lastMsisdn);
+  const [touched, setTouched] = useState(false);
   const abortRef = useRef(null);
+
+  const needsMsisdn = billingApi.requiresPayerMsisdn(entitlements);
 
   useEffect(() => {
     billingApi
       .creatorPackages()
       .then((list) => {
         setPackages(list);
-        // Gold first: it is the one most creators want, and preselecting
-        // nothing means the primary button starts disabled for no reason.
-        setChoice((current) => current ?? list.find((p) => p.code === 'GOLD')?.code ?? list[0]?.code);
+        // Preselect the tier the picker flags as most popular, so the primary
+        // button does not start disabled for no reason. Resolved from the same
+        // map the badge uses rather than a hardcoded code, which is how this
+        // came to be pointing at a package that no longer exists.
+        const popular = list.find((p) => CREATOR_PACKAGES[p.code]?.best)?.code;
+        setChoice((current) => current ?? popular ?? list[0]?.code);
       })
       .catch((e) => message.error(e.message));
   }, [message]);
@@ -62,10 +71,20 @@ export default function ChoosePackage() {
 
   const pay = useCallback(async () => {
     if (!choice) return;
+    if (needsMsisdn && !billingApi.isValidMsisdn(msisdn)) {
+      setTouched(true);
+      setFailed(t('billing.momoRequired'));
+      return;
+    }
+
     setBusy(true);
     setFailed(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await billingApi.buyCreatorPackage(choice);
+      const number = needsMsisdn ? msisdn.trim() : undefined;
+      const res = await billingApi.buyCreatorPackage(choice, number);
       setCheckout(res);
 
       if (res.action === 'REDIRECT' && res.redirectUrl) {
@@ -76,27 +95,30 @@ export default function ChoosePackage() {
       // Settled on the spot? Skip the waiting screen entirely.
       let settled = billingApi.isSettled(res) ? res.purchase : null;
       if (!settled) {
-        const controller = new AbortController();
-        abortRef.current = controller;
         settled = await billingApi.waitForSettlement(res.purchase.id, { signal: controller.signal });
       }
+      if (controller.signal.aborted) return;
 
       if (settled?.status === 'COMPLETED') {
+        if (number) billingApi.rememberMsisdn(number);
         await loadPackage();
         message.success(t('packages.activated'));
         navigate('/studio', { replace: true });
       } else if (settled?.status === 'FAILED' || settled?.status === 'CANCELLED') {
         setFailed(settled.failureReason || t('packages.failedBody'));
       } else {
-        setFailed(t('packages.notSeen'));
+        // Still pending: the prompt is live on the handset. The 15s poll above
+        // is already watching for it, so this waits rather than declaring
+        // failure and tempting a second payment.
+        setFailed(t('billing.stillWaitingBody'));
       }
     } catch (e) {
-      setFailed(e.message);
+      setFailed(e.code === 'momo_unavailable' ? t('billing.momoUnavailable') : e.message);
     } finally {
       setBusy(false);
       setCheckout(null);
     }
-  }, [choice, loadPackage, message, navigate, t]);
+  }, [choice, loadPackage, message, msisdn, navigate, needsMsisdn, t]);
 
   /* ── Waiting on an out-of-band payment ── */
   if (busy && checkout) {
@@ -108,10 +130,12 @@ export default function ChoosePackage() {
             {checkout.action === 'PROMPT_ON_PHONE' ? t('billing.checkPhone') : t('billing.waiting')}
           </h1>
           <p className="muted" style={{ fontSize: 14, lineHeight: 1.7, maxWidth: 360, margin: '0 auto' }}>
-            {checkout.instructions ||
-              (checkout.action === 'PROMPT_ON_PHONE'
-                ? t('onboarding.checkPhoneBody')
-                : t('onboarding.waitingBody'))}
+            {checkout.action === 'PROMPT_ON_PHONE' && msisdn
+              ? t('billing.checkPhoneBody', { msisdn: msisdn.trim() })
+              : checkout.instructions ||
+                (checkout.action === 'PROMPT_ON_PHONE'
+                  ? t('onboarding.checkPhoneBody')
+                  : t('onboarding.waitingBody'))}
           </p>
           <Tag color="gold" style={{ marginTop: 20 }}>
             {formatDisplay(checkout.purchase?.priceDisplay, checkout.purchase?.currency, lang)} ·{' '}
@@ -151,6 +175,17 @@ export default function ChoosePackage() {
           />
 
           <div className="glass" style={{ padding: 22, marginTop: 22 }}>
+            {needsMsisdn && (
+              <div style={{ marginTop: -4, marginBottom: 18 }}>
+                <MomoNumberField
+                  value={msisdn}
+                  onChange={setMsisdn}
+                  touched={touched}
+                  disabled={busy}
+                />
+              </div>
+            )}
+
             <Button
               type="primary"
               size="large"

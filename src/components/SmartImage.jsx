@@ -30,6 +30,7 @@ export default function SmartImage({ src, alt = '', seed, label, style, classNam
       loading="lazy"
       decoding="async"
       draggable={false}
+      onContextMenu={(e) => e.preventDefault()}
       onLoad={() => setReady(true)}
       onError={() => setFailed(true)}
       className={`smart-img${ready ? ' is-ready' : ''}${className ? ` ${className}` : ''}`}

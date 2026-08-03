@@ -90,7 +90,19 @@ export default function LiveRoom() {
         <Col xs={24} lg={16}>
           <div className="live-stage">
             {!locked && playbackUrl ? (
-              <video src={playbackUrl} controls autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }} />
+              <video
+                src={playbackUrl}
+                controls
+                autoPlay
+                playsInline
+                // Paid entry to a broadcast, so the same no-saving treatment as
+                // paid clips: no download button, no context menu.
+                controlsList="nodownload noplaybackrate noremoteplayback"
+                disablePictureInPicture
+                disableRemotePlayback
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#000' }}
+              />
             ) : (
               <SmartImage src={null} alt={session.title} seed={session.id} label={session.hostUsername} />
             )}

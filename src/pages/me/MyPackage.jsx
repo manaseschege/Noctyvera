@@ -4,6 +4,7 @@ import { MobileOutlined, PictureFilled, ThunderboltFilled, VideoCameraFilled } f
 import dayjs from 'dayjs';
 import { billingApi } from '../../api';
 import { formatDisplay } from '../../api/currency';
+import MomoNumberField from '../../components/MomoNumberField';
 import PackagePicker from '../../components/PackagePicker';
 import { PageHeader } from '../../components/ui';
 import { useAuth } from '../../store/auth';
@@ -21,13 +22,17 @@ import { useI18n } from '../../i18n/useT';
 export default function MyPackage() {
   const { t, lang } = useI18n();
   const { message } = App.useApp();
-  const { packageStatus, loadPackage } = useAuth();
+  const { packageStatus, loadPackage, entitlements } = useAuth();
 
   const [packages, setPackages] = useState(null);
   const [choice, setChoice] = useState(null);
   const [busy, setBusy] = useState(false);
   const [checkout, setCheckout] = useState(null);
+  const [msisdn, setMsisdn] = useState(billingApi.lastMsisdn);
+  const [touched, setTouched] = useState(false);
   const abortRef = useRef(null);
+
+  const needsMsisdn = billingApi.requiresPayerMsisdn(entitlements);
 
   useEffect(() => {
     loadPackage();
@@ -40,9 +45,19 @@ export default function MyPackage() {
 
   const buy = useCallback(async () => {
     if (!choice) return;
+    if (needsMsisdn && !billingApi.isValidMsisdn(msisdn)) {
+      setTouched(true);
+      message.warning(t('billing.momoRequired'));
+      return;
+    }
+
     setBusy(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const res = await billingApi.buyCreatorPackage(choice);
+      const number = needsMsisdn ? msisdn.trim() : undefined;
+      const res = await billingApi.buyCreatorPackage(choice, number);
       setCheckout(res);
 
       if (res.action === 'REDIRECT' && res.redirectUrl) {
@@ -52,25 +67,30 @@ export default function MyPackage() {
 
       let settled = billingApi.isSettled(res) ? res.purchase : null;
       if (!settled) {
-        const controller = new AbortController();
-        abortRef.current = controller;
         settled = await billingApi.waitForSettlement(res.purchase.id, { signal: controller.signal });
       }
+      if (controller.signal.aborted) return;
 
       if (settled?.status === 'COMPLETED') {
+        if (number) billingApi.rememberMsisdn(number);
         await loadPackage();
         message.success(t('packages.activated'));
         setChoice(null);
+      } else if (settled?.status === 'FAILED') {
+        message.error(settled.failureReason || t('billing.declined'));
       } else {
-        message.warning(settled?.failureReason || t('packages.notSeen'));
+        // Still PENDING. The prompt is alive on the handset and the server will
+        // settle it whenever it is answered — saying "failed" here would invite
+        // a second payment for the same package.
+        message.info(t('billing.stillWaitingBody'));
       }
     } catch (e) {
-      message.error(e.message);
+      message.error(e.code === 'momo_unavailable' ? t('billing.momoUnavailable') : e.message);
     } finally {
       setBusy(false);
       setCheckout(null);
     }
-  }, [choice, loadPackage, message, t]);
+  }, [choice, loadPackage, message, msisdn, needsMsisdn, t]);
 
   if (!packageStatus) {
     return (
@@ -155,15 +175,30 @@ export default function MyPackage() {
             disabled={busy}
           />
 
+          {needsMsisdn && (
+            <div style={{ maxWidth: 420 }}>
+              <MomoNumberField
+                value={msisdn}
+                onChange={setMsisdn}
+                touched={touched}
+                disabled={busy}
+              />
+            </div>
+          )}
+
           {checkout && busy && (
             <Alert
               type="info"
               showIcon
-              style={{ marginTop: 18 }}
+              style={{ marginTop: 18, maxWidth: 420 }}
               message={
                 checkout.action === 'PROMPT_ON_PHONE' ? t('billing.checkPhone') : t('billing.waiting')
               }
-              description={checkout.instructions || t('onboarding.waitingBody')}
+              description={
+                checkout.action === 'PROMPT_ON_PHONE' && msisdn
+                  ? t('billing.checkPhoneBody', { msisdn: msisdn.trim() })
+                  : checkout.instructions || t('onboarding.waitingBody')
+              }
             />
           )}
 

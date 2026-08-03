@@ -5,6 +5,7 @@ import { billingApi } from '../api';
 import { useAuth } from '../store/auth';
 import { formatDisplay } from '../api/currency';
 import { useI18n } from '../i18n/useT';
+import MomoNumberField from './MomoNumberField';
 
 /**
  * Buying one thing.
@@ -17,6 +18,13 @@ import { useI18n } from '../i18n/useT';
  * `item` is `{ id, kind: 'media' | 'live', title, priceMinor, priceDisplay,
  * currency, creatorName }` — the caller already has all of it from the gallery
  * or the listing, so nothing is fetched to open this.
+ *
+ * ── Three outcomes, not two ────────────────────────────────────
+ * On Mobile Money the purchase does not resolve inside the request: a prompt
+ * goes to the payer's handset and the answer arrives minutes later. So waiting
+ * can end three ways — paid, declined, or *still open* — and the third is not a
+ * failure. Telling someone their payment failed while the prompt is still live
+ * on their phone invites them to pay twice, so it gets its own screen.
  */
 export default function CheckoutModal({ open, onClose, item, onSettled }) {
   const { t, lang } = useI18n();
@@ -26,22 +34,38 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
   const [busy, setBusy] = useState(false);
   const [checkout, setCheckout] = useState(null);
   const [settled, setSettled] = useState(null);
+  const [msisdn, setMsisdn] = useState('');
+  const [touched, setTouched] = useState(false);
   const abortRef = useRef(null);
+
+  const needsMsisdn = billingApi.requiresPayerMsisdn(entitlements);
 
   useEffect(() => {
     if (!open) return;
     setCheckout(null);
     setSettled(null);
+    setTouched(false);
+    // Offer the last number that actually paid. Most people use one handset.
+    setMsisdn(billingApi.lastMsisdn());
   }, [open]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const buy = async () => {
+    if (needsMsisdn && !billingApi.isValidMsisdn(msisdn)) {
+      setTouched(true);
+      return;
+    }
+
     setBusy(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
+      const number = needsMsisdn ? msisdn.trim() : undefined;
       const res = item.kind === 'live'
-        ? await billingApi.buyLiveAccess(item.id)
-        : await billingApi.unlockMedia(item.id);
+        ? await billingApi.buyLiveAccess(item.id, number)
+        : await billingApi.unlockMedia(item.id, number);
 
       setCheckout(res);
 
@@ -53,18 +77,24 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
       // Already paid — skip the waiting screen for something that will never change.
       let final = billingApi.isSettled(res) ? res.purchase : null;
       if (!final) {
-        const controller = new AbortController();
-        abortRef.current = controller;
         final = await billingApi.waitForSettlement(res.purchase.id, { signal: controller.signal });
       }
 
-      setSettled(final);
+      // The payer closed the modal while we were polling; they have moved on.
+      if (controller.signal.aborted) return;
+
+      setSettled(final ?? res.purchase);
       if (final?.status === 'COMPLETED') {
+        // Only worth remembering a number that a provider actually accepted.
+        if (number) billingApi.rememberMsisdn(number);
         await loadEntitlements();
         onSettled?.(final);
       }
     } catch (e) {
-      message.error(e.message);
+      // The server distinguishes "mobile money is down" from "you got it wrong";
+      // both arrive as a message worth showing verbatim.
+      message.error(e.code === 'momo_unavailable' ? t('billing.momoUnavailable') : e.message);
+      setCheckout(null);
     } finally {
       setBusy(false);
     }
@@ -80,9 +110,26 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
   const price = formatDisplay(item.priceDisplay, item.currency, lang);
   const credit = billingApi.creditBalance(entitlements);
 
-  /* ── Settled ── */
+  /* ── Finished, one way or another ── */
   if (settled) {
-    const won = settled.status === 'COMPLETED';
+    const status = settled.status;
+
+    // Still PENDING means the window closed before the payer answered — the
+    // prompt is alive and the server settles it whenever they do.
+    if (status === 'PENDING') {
+      return (
+        <Modal open={open} onCancel={close} width={420} destroyOnHidden
+               footer={<Button type="primary" onClick={close}>{t('common.done')}</Button>}>
+          <Result
+            status="info"
+            title={t('billing.stillWaiting')}
+            subTitle={t('billing.stillWaitingBody')}
+          />
+        </Modal>
+      );
+    }
+
+    const won = status === 'COMPLETED';
     return (
       <Modal open={open} onCancel={close} width={420} destroyOnHidden
              footer={<Button type="primary" onClick={close}>{t('common.done')}</Button>}>
@@ -91,7 +138,7 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
           title={won ? t('billing.paymentReceived') : t('billing.paymentFailed')}
           subTitle={won
             ? t('billing.itemOpen', { title: item.title })
-            : settled.failureReason || t('billing.noMoneyTaken')}
+            : settled.failureReason || t('billing.declined')}
         />
       </Modal>
     );
@@ -99,16 +146,19 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
 
   /* ── Waiting on an out-of-band payment ── */
   if (checkout && busy) {
+    const onPhone = checkout.action === 'PROMPT_ON_PHONE';
     return (
       <Modal open={open} onCancel={close} width={420} destroyOnHidden
-             footer={<Button onClick={close}>{t('common.cancel')}</Button>}>
+             footer={<Button onClick={close}>{t('billing.cancelWait')}</Button>}>
         <div style={{ textAlign: 'center', padding: '20px 0' }}>
           <Spin size="large" />
           <h3 className="serif" style={{ fontSize: 22, margin: '22px 0 8px' }}>
-            {checkout.action === 'PROMPT_ON_PHONE' ? t('billing.checkPhone') : t('billing.waiting')}
+            {onPhone ? t('billing.checkPhone') : t('billing.waiting')}
           </h3>
           <p className="muted" style={{ fontSize: 13.5, lineHeight: 1.7, maxWidth: 320, margin: '0 auto' }}>
-            {checkout.instructions || t('onboarding.waitingBody')}
+            {onPhone && msisdn
+              ? t('billing.checkPhoneBody', { msisdn: msisdn.trim() })
+              : checkout.instructions || t('onboarding.waitingBody')}
           </p>
           <Tag color="gold" style={{ marginTop: 18 }}>{price}</Tag>
         </div>
@@ -127,7 +177,7 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
       footer={[
         <Button key="c" onClick={close}>{t('common.notNow')}</Button>,
         <Button key="ok" type="primary" loading={busy} onClick={buy} icon={<ThunderboltFilled />}>
-          {t('billing.payAmount', { price })}
+          {needsMsisdn ? t('billing.payWithMomo', { price }) : t('billing.payAmount', { price })}
         </Button>,
       ]}
     >
@@ -152,6 +202,16 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
             amount: formatDisplay(entitlements.creditBalanceDisplay, entitlements.currency, lang),
           })}
         </div>
+      )}
+
+      {needsMsisdn && (
+        <MomoNumberField
+          value={msisdn}
+          onChange={setMsisdn}
+          touched={touched}
+          disabled={busy}
+          autoFocus={!msisdn}
+        />
       )}
 
       <p className="faint" style={{ fontSize: 12, marginTop: 14, marginBottom: 0, lineHeight: 1.6 }}>

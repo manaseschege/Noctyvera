@@ -1,4 +1,4 @@
-import { PictureFilled, VideoCameraFilled } from '@ant-design/icons';
+import { PictureFilled, VideoCameraFilled, WifiOutlined } from '@ant-design/icons';
 import { CREATOR_PACKAGES } from '../api/config';
 import { humanDuration } from '../api/billing';
 import { formatDisplay } from '../api/currency';
@@ -9,8 +9,16 @@ import { useI18n } from '../i18n/useT';
  *
  * What each one covers is the decision being made, so the allowances are the
  * loudest thing on the card — not the price. A zero limit is drawn struck
- * through rather than hidden, because "silver has no photos" is the fact that
- * makes silver cheaper, and hiding it is how somebody buys the wrong one.
+ * through rather than hidden, because "Pro has no video" is the fact that makes
+ * Pro cheaper, and hiding it is how somebody buys the wrong one.
+ *
+ * Inclusion is derived from the limits rather than read from `includesPhotos` /
+ * `includesVideos` flags, which the API does not send — reading them made every
+ * card claim it covered nothing at all, which is a bad thing to tell someone
+ * about the package they are one tap from paying for.
+ *
+ * Daily live minutes are shown because that is what actually separates the
+ * tiers: 15 minutes against two hours is the reason to move up.
  */
 export default function PackagePicker({ packages, value, onChange, currentCode, disabled }) {
   const { t, lang } = useI18n();
@@ -22,7 +30,7 @@ export default function PackagePicker({ packages, value, onChange, currentCode, 
         const meta = CREATOR_PACKAGES[p.code] ?? {};
         const active = value === p.code;
         const held = currentCode === p.code;
-        const best = p.code === 'GOLD';
+        const best = Boolean(meta.best);
 
         return (
           <button
@@ -46,17 +54,21 @@ export default function PackagePicker({ packages, value, onChange, currentCode, 
             </div>
 
             <ul className="package-allowance">
-              <li className={p.includesPhotos ? '' : 'is-excluded'}>
+              <li className={p.maxPhotos > 0 ? '' : 'is-excluded'}>
                 <PictureFilled />
-                {p.includesPhotos
+                {p.maxPhotos > 0
                   ? t('packages.upToPhotos', { count: p.maxPhotos })
                   : t('packages.noPhotos')}
               </li>
-              <li className={p.includesVideos ? '' : 'is-excluded'}>
+              <li className={p.maxPremiumVideos > 0 ? '' : 'is-excluded'}>
                 <VideoCameraFilled />
-                {p.includesVideos
-                  ? t('packages.upToVideos', { count: p.maxVideos })
+                {p.maxPremiumVideos > 0
+                  ? t('packages.upToVideos', { count: p.maxPremiumVideos })
                   : t('packages.noVideos')}
+              </li>
+              <li className={p.liveMinutesPerDay > 0 ? '' : 'is-excluded'}>
+                <WifiOutlined />
+                {liveAllowance(p, t)}
               </li>
             </ul>
           </button>
@@ -64,4 +76,18 @@ export default function PackagePicker({ packages, value, onChange, currentCode, 
       })}
     </div>
   );
+}
+
+/**
+ * The daily live allowance, in the unit a person would actually say it in.
+ *
+ * Built from `liveMinutesPerDay` rather than shown as the server's
+ * `liveAllowanceLabel`, which is English-only — the French side of the site
+ * would otherwise read "2 hours per day" in the middle of a French card.
+ */
+function liveAllowance(p, t) {
+  const minutes = p.liveMinutesPerDay ?? 0;
+  if (minutes <= 0) return t('packages.noLive');
+  if (minutes % 60 === 0) return t('packages.liveHours', { count: minutes / 60 });
+  return t('packages.liveMinutes', { count: minutes });
 }

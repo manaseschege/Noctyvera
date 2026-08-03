@@ -24,8 +24,15 @@ export const allowedDurations = () =>
 export const setRate = (durationMinutes, priceMinor) =>
   http.put('/me/call-rates', { durationMinutes, priceMinor });
 
-export const book = (userId, { durationMinutes, scheduledFor }) =>
-  http.post(`/members/${userId}/calls`, { durationMinutes, scheduledFor });
+/**
+ * Book a slot and pay for it in one step.
+ *
+ * The response is a CheckoutResponse like any other purchase, so on mobile
+ * money the booking is held PENDING until the payer approves the prompt —
+ * poll it with `billingApi.waitForSettlement`.
+ */
+export const book = (userId, { durationMinutes, scheduledFor, payerMsisdn }) =>
+  http.post(`/members/${userId}/calls`, { durationMinutes, scheduledFor, payerMsisdn });
 
 export const mine = ({ page = 0, size = 20 } = {}) =>
   http.get(`/me/calls?${pageQuery({ page, size })}`);

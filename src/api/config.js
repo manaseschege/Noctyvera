@@ -80,10 +80,19 @@ export const NEXT_STEP = {
  * `GET /billing/creator-packages`; only the ordering and the accent colour
  * are decided here.
  */
+/**
+ * Per-package styling. Keyed by the codes the API actually serves — these were
+ * BRONZE/SILVER/GOLD until the weekly packages replaced them, and a stale key
+ * fails quietly by falling back to the default accent, so it is worth keeping
+ * in step with the server.
+ *
+ * `best` is the tier the picker flags as most popular: the middle one, which is
+ * the honest answer and not the most expensive.
+ */
 export const CREATOR_PACKAGES = {
-  BRONZE: { accent: '#C0784A', order: 0 },
-  SILVER: { accent: '#B9BEC7', order: 1 },
-  GOLD: { accent: '#D9B46A', order: 2 },
+  PRO: { accent: '#C0784A', order: 0 },
+  DIAMOND: { accent: '#B9BEC7', order: 1, best: true },
+  BLACK_DIAMOND: { accent: '#D9B46A', order: 2 },
 };
 
 export const DOC_TYPES = [
