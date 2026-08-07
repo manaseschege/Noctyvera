@@ -1416,6 +1416,80 @@ body::before {
     position: static;
     padding: 12px;
   }
+
+  /* The filters are laid out in a row with inline max-widths that assume a
+     desktop. On a phone they end up as three cramped columns, so each one takes
+     the full width and they stack. `!important` because the widths are inline
+     styles on the antd components and cannot be outranked otherwise. */
+  .filter-bar > .ant-input-affix-wrapper,
+  .filter-bar > .ant-select {
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
+  .filter-bar > .ant-space {
+    margin-left: 0 !important;
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Small screens
+   ══════════════════════════════════════════════════════════ */
+
+@media (max-width: 640px) {
+  /* A 420px-wide dialog on a 360px phone is clipped on both sides. */
+  .ant-modal {
+    max-width: calc(100vw - 24px) !important;
+    margin: 12px auto;
+  }
+
+  /* Everything tappable clears the 44px the platform guidelines ask for.
+     Icon-only buttons were the worst of it — a 24px target next to another
+     24px target is a coin toss. */
+  .ant-btn:not(.ant-btn-sm):not(.ant-btn-link),
+  .ant-select-selector,
+  .ant-input-affix-wrapper,
+  .ant-input-number-input {
+    min-height: 44px;
+  }
+  .ant-btn-icon-only:not(.ant-btn-sm) {
+    min-width: 44px;
+  }
+
+  /* The profile name is set for a wide header and wraps badly on a phone. */
+  .profile-cover + .ant-row h1.serif {
+    font-size: 25px;
+  }
+
+  /* Stacked rather than side by side, so neither the dialling code nor the
+     number gets squeezed to nothing. */
+  .pay-method {
+    padding: 11px 12px;
+  }
+
+  /* Horizontal scroll is the one thing a phone layout must never do. Tables and
+     code are the usual culprits; let them scroll inside their own box. */
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+
+  /* antd's Space lays out in a nowrap row unless every call site passes `wrap`.
+     Two buttons plus a label is already wider than 390px, so button rows ran off
+     the side of the screen and took the whole page into horizontal scroll with
+     them. Wrapping is what every one of these wants on a phone. */
+  .ant-space-horizontal {
+    flex-wrap: wrap;
+  }
+}
+
+/* Very narrow — small Androids and a split-screen iPhone. */
+@media (max-width: 380px) {
+  .browse-grid,
+  .browse-grid.dense {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -1508,6 +1582,77 @@ body::before {
   font-weight: 700;
   white-space: nowrap;
 }
+/* Payment-method picker. Rows rather than a segmented control: the labels are
+   provider names of unpredictable length, and they have to stay readable on a
+   phone without truncating to "MTN Mobile M…". */
+/* The handle, when a display name is shown above it. Quiet on purpose — it is
+   the identifier, not the name. */
+.creator-card-handle {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 1px;
+}
+
+.pay-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pay-method {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--line);
+  transition: border-color 0.15s, background 0.15s;
+  /* Comfortably past the 44px minimum tap target. */
+  min-height: 56px;
+}
+.pay-method:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.pay-method.is-active {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+}
+.pay-method:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pay-method-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 9px;
+  color: var(--gold-bright);
+  background: rgba(217, 180, 106, 0.14);
+}
+.pay-method-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.pay-method-sub {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.45;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+.pay-method-tick {
+  margin-left: auto;
+  flex: none;
+  color: var(--gold);
+}
+
 .checkout-credit {
   margin-top: 12px;
   padding: 10px 14px;

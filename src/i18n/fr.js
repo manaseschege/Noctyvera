@@ -34,6 +34,8 @@ export const fr = {
     locked: 'Verrouillé',
     unlocked: 'Débloqué',
     verified: 'Vérifié',
+    verifiedTip: 'Identité vérifiée — ce membre a passé un contrôle de documents.',
+    whatsapp: 'Écrire sur WhatsApp',
     subscribed: 'Abonné',
     loadMore: 'Voir plus',
     nothingHere: 'Rien pour l’instant',
@@ -201,6 +203,9 @@ export const fr = {
     stepReview: 'Examen',
     stepActivate: 'Forfait',
 
+    approvedNow: 'Vous êtes vérifiée. Tout vous est ouvert — inutile de vous reconnecter.',
+    rejectedNow: 'Votre vérification d’identité n’a pas abouti. Ouvrez « Vérifier l’identité » pour en savoir plus et réessayer.',
+
     profileTitle: 'Dites-nous qui vous êtes',
     profileSub: 'C’est ce que les autres membres voient. Votre nom légal reste privé — il ne sert qu’à la vérification.',
     yourHandle: 'Votre pseudo',
@@ -338,6 +343,22 @@ export const fr = {
     profileHandle: 'Profil et pseudo',
   },
 
+  live: {
+    extendTitle: 'Ajouter du temps',
+    extendBody: 'Il vous reste {remaining} minutes aujourd’hui. Achetez-en davantage et continuez — vos spectateurs restent en place.',
+    extendNote: 'Ces minutes ne valent que pour aujourd’hui. Si vous dépassez souvent, un forfait supérieur revient moins cher.',
+    minutes: '{count} min',
+    buyMinutes: 'Payer {price}',
+    extended: '{minutes} minutes de plus',
+    extendedBody: 'Vous êtes de nouveau à l’antenne. Rien n’a été interrompu.',
+    cannotExtend: 'Plus de temps disponible',
+    dailyCapReached: 'Vous avez acheté le maximum de temps supplémentaire pour une journée. L’allocation repart à minuit UTC.',
+    extendUnavailable: 'L’achat de minutes supplémentaires n’est pas activé ici.',
+    minutesLeft: '{count} min restantes aujourd’hui',
+    runningOut: 'Le temps s’épuise',
+    runningOutBody: 'Environ {count} minutes restantes. Ajoutez du temps avant la coupure.',
+  },
+
   studio: {
     title: 'Mon tableau de bord',
     allGood: 'Tout va bien',
@@ -383,6 +404,11 @@ export const fr = {
   },
 
   discover: {
+    anyAge: 'Tout âge',
+    age18: '18 – 24',
+    age25: '25 – 34',
+    age35: '35 – 44',
+    age45: '45 et plus',
     title: 'Découvrir',
     subtitle_one: '{count} membre. Chaque profil a un aperçu gratuit — regardez avant de débloquer quoi que ce soit.',
     subtitle_other: '{count} membres. Chaque profil a un aperçu gratuit — regardez avant de débloquer quoi que ce soit.',
@@ -503,12 +529,14 @@ export const fr = {
     noMoneyTaken: 'Aucun montant n’a été prélevé. Vous pouvez réessayer.',
     phoneNote: 'Le paiement est confirmé sur votre téléphone. Rien n’est prélevé avant votre validation.',
 
+    payWith: 'Payer avec',
+
     /* Mobile Money */
     momoNumber: 'Numéro Mobile Money',
     momoNumberHint: 'Le numéro qui détient l’argent. Ce n’est pas forcément celui de votre compte.',
     momoPlaceholder: '237 6XX XXX XXX',
     momoNote: 'Nous envoyons une demande de validation à ce téléphone. Rien n’est débité avant la saisie de votre code.',
-    momoInvalid: 'Saisissez le numéro complet, indicatif pays compris.',
+    momoInvalid: 'Ce numéro semble trop court. Vérifiez les chiffres après l’indicatif.',
     momoRequired: 'Saisissez le numéro Mobile Money à débiter.',
     payWithMomo: 'Payer {price} par Mobile Money',
     checkPhoneBody: 'Nous avons envoyé une demande au {msisdn}. Ouvrez la notification, saisissez votre code Mobile Money, et cette page se mettra à jour toute seule.',
@@ -560,6 +588,12 @@ export const fr = {
   },
 
   media: {
+    yourPrice: 'Votre prix',
+    pricePlaceholder: 'Laissez vide pour le prix standard',
+    priceHint: 'Ce qu’un membre paie pour débloquer cet élément. À définir par élément — modifiable à tout moment depuis la vignette.',
+    currentlyPriced: 'Actuellement {price}. Le nouveau prix ne s’applique qu’aux futurs achats.',
+    editPrice: 'Modifier le prix',
+    priceSaved: 'Prix mis à jour. Les paiements déjà en cours gardent le prix annoncé.',
     subtitleTiers: 'Les publications gratuites sont votre vitrine — tout le monde peut les voir, connecté ou non. Les publications exclusives restent verrouillées jusqu’à ce qu’on vous débloque.',
     whoCanSee: 'Qui peut voir ceci',
     tierFree: 'Gratuit',
@@ -655,6 +689,8 @@ export const fr = {
   },
 
   account: {
+    whatsappLabel: 'Numéro WhatsApp',
+    whatsappHint: 'Affiché publiquement sur votre profil sous forme de bouton. Laissez vide pour ne pas le publier.',
     title: 'Mon compte',
     subtitle: 'Votre profil, votre pseudo, votre session.',
     role: 'Rôle',

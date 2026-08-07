@@ -84,7 +84,7 @@ export default function ChoosePackage() {
 
     try {
       const number = needsMsisdn ? msisdn.trim() : undefined;
-      const res = await billingApi.buyCreatorPackage(choice, number);
+      const res = await billingApi.buyCreatorPackage(choice, { payerMsisdn: number });
       setCheckout(res);
 
       if (res.action === 'REDIRECT' && res.redirectUrl) {

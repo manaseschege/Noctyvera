@@ -43,3 +43,24 @@ export const start = (sessionId) => http.post(`/me/live/${sessionId}/start`);
 export const end = (sessionId) => http.post(`/me/live/${sessionId}/end`);
 
 export const isLive = (s) => s?.status === 'LIVE';
+
+/* ── The daily allowance ───────────────────────────────────────── */
+
+/**
+ * How many live minutes are left today.
+ *
+ * `remainingMinutes` counts a broadcast that is on air right now, so it falls
+ * while streaming — poll it during a session to warn before the cut-off rather
+ * than after it.
+ */
+export const allowance = () => http.get('/me/live/allowance');
+
+/**
+ * Buy extra minutes for today.
+ *
+ * A CheckoutResponse like any other purchase: on mobile money it comes back
+ * PENDING and **the minutes are not granted until it settles**, so poll with
+ * `billingApi.waitForSettlement` before telling anyone they can keep going.
+ */
+export const extend = (minutes, { method, payerMsisdn } = {}) =>
+  http.post('/me/live/extend', { minutes, method, payerMsisdn });

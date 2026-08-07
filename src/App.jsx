@@ -8,6 +8,7 @@ import {
   RequireVerified,
 } from './components/Guards';
 import PublicLayout from './components/layout/PublicLayout';
+import VerificationWatcher from './components/VerificationWatcher';
 import AdminLayout from './pages/admin/AdminLayout';
 
 import Landing from './pages/public/Landing';
@@ -53,6 +54,9 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      {/* Picks up an identity verdict on any screen, so being approved does not
+          require signing out and back in. */}
+      <VerificationWatcher />
       <Routes>
         {/* ── Auth ──
             Signing in is two screens: password, then the emailed code. */}

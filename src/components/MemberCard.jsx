@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { EnvironmentOutlined, LockFilled, PictureFilled, VideoCameraFilled } from '@ant-design/icons';
 import SmartImage from './SmartImage';
+import VerifiedBadge from './VerifiedBadge';
 import { AuthedImage } from './AuthedFile';
 import { coverOf, lockedCount, toFetchPath } from '../api/members';
 import { formatDisplay } from '../api/currency';
@@ -71,9 +72,17 @@ export default function MemberCard({ member }) {
 
         <div className="creator-card-body">
           <div className="creator-card-name">
-            {member.username}
+            {/* The chosen name leads, falling back to the handle for anyone who
+                never set one — a card with a blank name reads as broken. */}
+            {member.displayName || member.username}
+            {member.verified && <VerifiedBadge />}
             {member.age ? <span className="muted" style={{ fontWeight: 400 }}>· {member.age}</span> : null}
           </div>
+
+          {/* Only worth a second line when it is not the same string twice. */}
+          {member.displayName && (
+            <div className="creator-card-handle">@{member.username}</div>
+          )}
 
           <div className="creator-card-meta">
             {member.city && (

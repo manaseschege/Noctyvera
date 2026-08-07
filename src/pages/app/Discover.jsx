@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { App, Button, Input, Space, Switch, Tooltip } from 'antd';
+import { App, Button, Input, Select, Space, Switch, Tooltip } from 'antd';
 import { AppstoreOutlined, SearchOutlined, TableOutlined } from '@ant-design/icons';
 import { membersApi } from '../../api';
 import { useAuth } from '../../store/auth';
@@ -9,6 +9,21 @@ import MemberCard from '../../components/MemberCard';
 import { AccessGate, Blank, GridSkeleton, LoadMore, PageHeader } from '../../components/ui';
 
 const PAGE_SIZE = 24;
+
+/**
+ * Age filtering as a handful of presets rather than a two-handled slider.
+ *
+ * A range slider is fiddly on a phone — two small targets that have to be
+ * dragged past each other — and nobody browsing actually wants 27-33. One tap,
+ * one list. `min`/`max` are sent as-is; an absent bound means open at that end.
+ */
+const AGE_RANGES = [
+  { value: '', min: null, max: null, labelKey: 'discover.anyAge' },
+  { value: '18-24', min: 18, max: 24, labelKey: 'discover.age18' },
+  { value: '25-34', min: 25, max: 34, labelKey: 'discover.age25' },
+  { value: '35-44', min: 35, max: 44, labelKey: 'discover.age35' },
+  { value: '45-', min: 45, max: null, labelKey: 'discover.age45' },
+];
 
 export default function Discover() {
   const t = useT();
@@ -28,13 +43,40 @@ export default function Discover() {
   const [liveOnly, setLiveOnly] = useState(false);
 
   const city = params.get('city') ?? '';
+  const age = params.get('age') ?? '';
+  const range = AGE_RANGES.find((r) => r.value === age) ?? AGE_RANGES[0];
+
+  /**
+   * Change one filter without dropping the others.
+   *
+   * The filters live in the URL so a search stays shareable and survives a
+   * reload, but that only works if setting a city does not silently wipe the
+   * age — which is what replacing the whole param object does.
+   */
+  const patchParams = useCallback(
+    (patch) => {
+      const next = new URLSearchParams(params);
+      Object.entries(patch).forEach(([k, v]) => {
+        if (v) next.set(k, v);
+        else next.delete(k);
+      });
+      setParams(next, { replace: true });
+    },
+    [params, setParams],
+  );
 
   const load = useCallback(
     async (nextPage) => {
       if (nextPage === 0) setLoading(true);
       else setMore(true);
       try {
-        const res = await membersApi.list({ city: city || undefined, page: nextPage, size: PAGE_SIZE });
+        const res = await membersApi.list({
+          city: city || undefined,
+          minAge: range.min ?? undefined,
+          maxAge: range.max ?? undefined,
+          page: nextPage,
+          size: PAGE_SIZE,
+        });
         setItems((prev) => (nextPage === 0 ? res.items : [...prev, ...res.items]));
         setTotal(res.total);
         setLast(res.last);
@@ -50,7 +92,7 @@ export default function Discover() {
         setMore(false);
       }
     },
-    [city, message],
+    [city, range.min, range.max, message],
   );
 
   useEffect(() => {
@@ -76,8 +118,16 @@ export default function Discover() {
           prefix={<SearchOutlined style={{ color: 'var(--text-faint)' }} />}
           placeholder={t('discover.filterCity')}
           defaultValue={city}
-          onPressEnter={(e) => setParams(e.target.value ? { city: e.target.value } : {}, { replace: true })}
-          onChange={(e) => !e.target.value && city && setParams({}, { replace: true })}
+          onPressEnter={(e) => patchParams({ city: e.target.value })}
+          onChange={(e) => !e.target.value && city && patchParams({ city: '' })}
+        />
+
+        <Select
+          size="large"
+          style={{ minWidth: 150 }}
+          value={age}
+          onChange={(v) => patchParams({ age: v })}
+          options={AGE_RANGES.map((r) => ({ value: r.value, label: t(r.labelKey) }))}
         />
 
         <Space size={10} style={{ marginLeft: 'auto' }}>
@@ -103,7 +153,7 @@ export default function Discover() {
           title={liveOnly ? t('discover.noneLive') : t('discover.noMembers')}
           description={liveOnly ? t('discover.noneLiveBody') : city ? t('discover.noneInCity', { city }) : t('discover.checkBack')}
           action={
-            (city || liveOnly) && (
+            (city || age || liveOnly) && (
               <Button
                 type="primary"
                 onClick={() => {

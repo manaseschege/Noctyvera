@@ -34,6 +34,8 @@ export const en = {
     locked: 'Locked',
     unlocked: 'Unlocked',
     verified: 'Verified',
+    verifiedTip: 'Identity verified — this member passed a document check.',
+    whatsapp: 'Message on WhatsApp',
     subscribed: 'Subscribed',
     loadMore: 'Load more',
     nothingHere: 'Nothing here yet',
@@ -201,6 +203,9 @@ export const en = {
     stepReview: 'Review',
     stepActivate: 'Package',
 
+    approvedNow: 'You’re verified. Everything is open to you now — no need to sign in again.',
+    rejectedNow: 'Your identity check didn’t pass. Open Verify identity to see why and try again.',
+
     profileTitle: 'Tell us who you are',
     profileSub: 'This is what other members see. Your legal name stays private — it is only used for verification.',
     yourHandle: 'Your handle',
@@ -338,6 +343,22 @@ export const en = {
     profileHandle: 'Profile & handle',
   },
 
+  live: {
+    extendTitle: 'Add more time',
+    extendBody: 'You have {remaining} minutes left today. Buy more and keep going — your viewers stay where they are.',
+    extendNote: 'These minutes are for today only. If you run long most days, a bigger package works out cheaper.',
+    minutes: '{count} min',
+    buyMinutes: 'Pay {price}',
+    extended: '{minutes} more minutes',
+    extendedBody: 'You are back on air. Nothing was interrupted.',
+    cannotExtend: 'No more time available',
+    dailyCapReached: 'You have bought the most extra time allowed in one day. The allowance resets at midnight UTC.',
+    extendUnavailable: 'Buying extra minutes is not switched on here.',
+    minutesLeft: '{count} min left today',
+    runningOut: 'Running out of time',
+    runningOutBody: 'About {count} minutes left. Add more before you are cut off.',
+  },
+
   studio: {
     title: 'My dashboard',
     allGood: 'All good',
@@ -383,6 +404,11 @@ export const en = {
   },
 
   discover: {
+    anyAge: 'Any age',
+    age18: '18 – 24',
+    age25: '25 – 34',
+    age35: '35 – 44',
+    age45: '45 and over',
     title: 'Discover',
     subtitle_one: '{count} member. Every profile has a free preview — look before you unlock anything.',
     subtitle_other: '{count} members. Every profile has a free preview — look before you unlock anything.',
@@ -503,12 +529,14 @@ export const en = {
     noMoneyTaken: 'No money was taken. You can try again.',
     phoneNote: 'Payment is confirmed on your phone. Nothing is charged until you approve it.',
 
+    payWith: 'Pay with',
+
     /* Mobile Money */
     momoNumber: 'Mobile Money number',
     momoNumberHint: 'The number that holds the money. It does not have to be the number on your account.',
     momoPlaceholder: '237 6XX XXX XXX',
     momoNote: 'We send an approval request to this phone. Nothing is charged until you enter your PIN.',
-    momoInvalid: 'Enter the full number, including the country code.',
+    momoInvalid: 'That number looks too short. Check the digits after the country code.',
     momoRequired: 'Enter the Mobile Money number to charge.',
     payWithMomo: 'Pay {price} by Mobile Money',
     checkPhoneBody: 'We sent a request to {msisdn}. Open the prompt, enter your Mobile Money PIN, and this page will update on its own.',
@@ -560,6 +588,12 @@ export const en = {
   },
 
   media: {
+    yourPrice: 'Your price',
+    pricePlaceholder: 'Leave empty for the standard price',
+    priceHint: 'What a viewer pays to unlock this one item. You keep setting it per item — change it any time from the tile.',
+    currentlyPriced: 'Currently {price}. Change it and only new purchases use the new price.',
+    editPrice: 'Change price',
+    priceSaved: 'Price updated. Anyone already checking out pays what they were quoted.',
     subtitleTiers: 'Free posts are your shop window — anyone can see them, signed in or not. Exclusive posts stay locked until someone unlocks you.',
     whoCanSee: 'Who can see this',
     tierFree: 'Free',
@@ -655,6 +689,8 @@ export const en = {
   },
 
   account: {
+    whatsappLabel: 'WhatsApp number',
+    whatsappHint: 'Shown publicly on your profile as a Message button. Leave empty to keep it off.',
     title: 'My account',
     subtitle: 'Your profile, your handle, your session.',
     role: 'Role',

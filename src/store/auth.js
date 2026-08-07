@@ -140,6 +140,40 @@ export const useAuth = create((set, get) => ({
     return user;
   },
 
+  /**
+   * Re-read /me and, when the verification verdict has actually moved, reload
+   * everything that hangs off it.
+   *
+   * The server decides verification per request — the filter loads the account
+   * fresh, so an approval is live the moment a moderator saves it. Only the
+   * client was stale, which is why being approved used to mean signing out and
+   * back in: nothing refetched `/me`, so the guards kept reading the status
+   * captured at login.
+   *
+   * Returns the new status when it changed, otherwise null, so a caller can
+   * announce it. Never throws: this runs on a timer and a failed poll should
+   * be a no-op, not an error in someone's face.
+   */
+  async syncVerification() {
+    const before = get().user;
+    if (!before) return null;
+
+    let user;
+    try {
+      user = await authApi.me();
+    } catch {
+      return null;
+    }
+    if (!user) return null;
+
+    const changed = user.verificationStatus !== before.verificationStatus;
+    set({ user });
+    // Publishing rights and entitlements are downstream of the verdict, so a
+    // fresh /me alone would leave the studio still believing it is locked.
+    if (changed) await get().loadAccess(user);
+    return changed ? user.verificationStatus : null;
+  },
+
   /** Reads /me and everything that depends on who the user turns out to be. */
   async adopt() {
     const user = await authApi.me();

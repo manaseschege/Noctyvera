@@ -28,14 +28,23 @@ const uploadPath = (base, { caption, tier }) => {
   return qs ? `${base}?${qs}` : base;
 };
 
-export const uploadPhoto = (file, { caption, tier } = {}) =>
-  http.upload(uploadPath('/me/media/photos', { caption, tier }), file);
+export const uploadPhoto = (file, { caption, tier, priceMinor } = {}) =>
+  http.upload(uploadPath('/me/media/photos', { caption, tier, priceMinor }), file);
 
-export const uploadVideo = (file, { caption, tier } = {}) =>
-  http.upload(uploadPath('/me/media/videos', { caption, tier }), file);
+export const uploadVideo = (file, { caption, tier, priceMinor } = {}) =>
+  http.upload(uploadPath('/me/media/videos', { caption, tier, priceMinor }), file);
 
 /** Flip an existing post between FREE and EXCLUSIVE. */
 export const setTier = (mediaId, tier) => update(mediaId, { tier });
+
+/**
+ * Re-price one item.
+ *
+ * Only affects new purchases — anyone mid-checkout pays what they were quoted.
+ * The server enforces the floor and ceiling and returns a message naming them,
+ * so there is no second copy of those numbers here to drift out of date.
+ */
+export const setPrice = (mediaId, unlockPriceMinor) => update(mediaId, { unlockPriceMinor });
 
 export const update = (mediaId, patch) => http.patch(`/me/media/${mediaId}`, patch);
 

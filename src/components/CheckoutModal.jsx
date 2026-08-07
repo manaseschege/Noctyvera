@@ -6,6 +6,7 @@ import { useAuth } from '../store/auth';
 import { formatDisplay } from '../api/currency';
 import { useI18n } from '../i18n/useT';
 import MomoNumberField from './MomoNumberField';
+import PaymentMethodPicker from './PaymentMethodPicker';
 
 /**
  * Buying one thing.
@@ -36,9 +37,16 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
   const [settled, setSettled] = useState(null);
   const [msisdn, setMsisdn] = useState('');
   const [touched, setTouched] = useState(false);
+  const [methods, setMethods] = useState([]);
+  const [method, setMethod] = useState(null);
   const abortRef = useRef(null);
 
-  const needsMsisdn = billingApi.requiresPayerMsisdn(entitlements);
+  // Per method, not per deployment: Stripe must not be asked for a handset just
+  // because mobile money is also on offer.
+  const selected = methods.find((m) => m.code === method);
+  const needsMsisdn = selected
+    ? selected.requiresPayerMsisdn
+    : billingApi.requiresPayerMsisdn(entitlements);
 
   useEffect(() => {
     if (!open) return;
@@ -47,6 +55,22 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
     setTouched(false);
     // Offer the last number that actually paid. Most people use one handset.
     setMsisdn(billingApi.lastMsisdn());
+
+    let live = true;
+    billingApi
+      .paymentMethods()
+      .then((list) => {
+        if (!live) return;
+        setMethods(list ?? []);
+        setMethod((current) => current ?? list?.find((m) => m.isDefault)?.code ?? list?.[0]?.code ?? null);
+      })
+      // The list failing is not a reason to block a purchase: leaving `method`
+      // null makes the server fall back to its own default, which is exactly
+      // what happened before there was a picker at all.
+      .catch(() => setMethods([]));
+    return () => {
+      live = false;
+    };
   }, [open]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -62,10 +86,13 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
     abortRef.current = controller;
 
     try {
-      const number = needsMsisdn ? msisdn.trim() : undefined;
+      const payment = {
+        method: method ?? undefined,
+        payerMsisdn: needsMsisdn ? msisdn.trim() : undefined,
+      };
       const res = item.kind === 'live'
-        ? await billingApi.buyLiveAccess(item.id, number)
-        : await billingApi.unlockMedia(item.id, number);
+        ? await billingApi.buyLiveAccess(item.id, payment)
+        : await billingApi.unlockMedia(item.id, payment);
 
       setCheckout(res);
 
@@ -86,7 +113,7 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
       setSettled(final ?? res.purchase);
       if (final?.status === 'COMPLETED') {
         // Only worth remembering a number that a provider actually accepted.
-        if (number) billingApi.rememberMsisdn(number);
+        if (payment.payerMsisdn) billingApi.rememberMsisdn(payment.payerMsisdn);
         await loadEntitlements();
         onSettled?.(final);
       }
@@ -203,6 +230,13 @@ export default function CheckoutModal({ open, onClose, item, onSettled }) {
           })}
         </div>
       )}
+
+      <PaymentMethodPicker
+        methods={methods}
+        value={method}
+        onChange={setMethod}
+        disabled={busy}
+      />
 
       {needsMsisdn && (
         <MomoNumberField

@@ -200,6 +200,7 @@ function ProfileCard({ profile, onSaved }) {
       country: profile.country,
       vibe: profile.vibe,
       discoverable: profile.discoverable,
+      whatsappNumber: profile.whatsappNumber,
     });
   }, [form, profile]);
 
@@ -215,6 +216,7 @@ function ProfileCard({ profile, onSaved }) {
         country: v.country,
         vibe: v.vibe,
         discoverable: v.discoverable,
+        whatsappNumber: v.whatsappNumber,
       });
       onSaved(updated);
       await refresh();
@@ -266,6 +268,22 @@ function ProfileCard({ profile, onSaved }) {
 
         <Form.Item name="vibe" label={t('onboarding.vibe')}>
           <Select options={localiseOptions(VIBES, t)} allowClear />
+        </Form.Item>
+
+        <Form.Item
+          name="whatsappNumber"
+          label={t('account.whatsappLabel')}
+          rules={[
+            {
+              // Mirrors the server's pattern. Empty is allowed — clearing the
+              // field is how someone takes the number down again.
+              pattern: /^$|^\+?[0-9][0-9 ()-]{7,19}$/,
+              message: t('billing.momoInvalid'),
+            },
+          ]}
+          extra={<span className="faint" style={{ fontSize: 12 }}>{t('account.whatsappHint')}</span>}
+        >
+          <Input inputMode="tel" autoComplete="tel" placeholder="237 6XX XXX XXX" allowClear />
         </Form.Item>
 
 

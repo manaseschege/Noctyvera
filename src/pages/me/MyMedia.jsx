@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { App, Button, Col, Input, Modal, Popconfirm, Progress, Radio, Row, Segmented, Space, Tag, Tooltip, Upload } from 'antd';
+import { App, Button, Col, Input, InputNumber, Modal, Popconfirm, Progress, Radio, Row, Segmented, Space, Tag, Tooltip, Upload } from 'antd';
 import {
   CheckCircleFilled,
   GlobalOutlined,
@@ -17,7 +17,8 @@ import { mediaApi } from '../../api';
 import { MEDIA_STATUS, MEDIA_TIER, UPLOAD_LIMITS } from '../../api/config';
 import { AuthedImage, AuthedVideo } from '../../components/AuthedFile';
 import { Blank, GridSkeleton, PageHeader, StatCard } from '../../components/ui';
-import { useT } from '../../i18n/useT';
+import { currencyCode, formatDisplay } from '../../api/currency';
+import { useI18n } from '../../i18n/useT';
 
 const statusMeta = (t) => ({
   [MEDIA_STATUS.APPROVED]: { color: 'green', label: t('media.liveStatus'), icon: <CheckCircleFilled /> },
@@ -26,7 +27,7 @@ const statusMeta = (t) => ({
 });
 
 export default function MyMedia() {
-  const t = useT();
+  const { t, lang } = useI18n();
   const { message } = App.useApp();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +36,7 @@ export default function MyMedia() {
   const [progress, setProgress] = useState(0);
   const [caption, setCaption] = useState('');
   const [tier, setTier] = useState(MEDIA_TIER.EXCLUSIVE);
+  const [price, setPrice] = useState(null);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState('all');
 
@@ -64,7 +66,13 @@ export default function MyMedia() {
     setProgress(30);
     try {
       const fn = kind === 'video' ? mediaApi.uploadVideo : mediaApi.uploadPhoto;
-      await fn(file, { caption: caption || undefined, tier });
+      await fn(file, {
+        caption: caption || undefined,
+        tier,
+        // A free item has nothing to charge for, so the price is not sent even
+        // if one is still sitting in the box from a previous upload.
+        priceMinor: tier === MEDIA_TIER.EXCLUSIVE && price != null ? price : undefined,
+      });
       setProgress(100);
       setCaption('');
       message.success(t('media.uploadedPending'));
@@ -80,8 +88,16 @@ export default function MyMedia() {
 
   const save = async () => {
     try {
-      await mediaApi.update(editing.id, { caption: editing.caption });
-      message.success(t('media.captionUpdated'));
+      const patch = { caption: editing.caption };
+      // Only sent when it changed and the item is actually paid. Sending it
+      // unchanged would still be a write, and the server's floor/ceiling would
+      // then reject an edit to the caption of an item priced before the bounds
+      // were tightened.
+      if (editing.tier === MEDIA_TIER.EXCLUSIVE && editing.unlockPriceMinor !== editing.priceMinor) {
+        patch.unlockPriceMinor = editing.unlockPriceMinor;
+      }
+      await mediaApi.update(editing.id, patch);
+      message.success(patch.unlockPriceMinor != null ? t('media.priceSaved') : t('media.captionUpdated'));
       setEditing(null);
       load();
     } catch (e) {
@@ -189,6 +205,27 @@ export default function MyMedia() {
             </Space>
           </Radio.Group>
         </div>
+
+        {/* Only for paid items — a free one has nothing to price, and showing a
+            disabled price box next to "everyone can see this" reads as a bug. */}
+        {tier === MEDIA_TIER.EXCLUSIVE && (
+          <div style={{ marginBottom: 14 }}>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>{t('media.yourPrice')}</div>
+            <InputNumber
+              size="large"
+              style={{ width: '100%' }}
+              min={0}
+              step={500}
+              value={price}
+              onChange={setPrice}
+              addonBefore={currencyCode()}
+              placeholder={t('media.pricePlaceholder')}
+            />
+            <div className="faint" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+              {t('media.priceHint')}
+            </div>
+          </div>
+        )}
 
         <Input
           placeholder={t('media.caption')}
@@ -319,6 +356,29 @@ export default function MyMedia() {
           onChange={(e) => setEditing((s) => ({ ...s, caption: e.target.value }))}
           style={{ marginTop: 14 }}
         />
+
+        {editing?.tier === MEDIA_TIER.EXCLUSIVE && (
+          <div style={{ marginTop: 18 }}>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>{t('media.yourPrice')}</div>
+            <InputNumber
+              size="large"
+              style={{ width: '100%' }}
+              min={0}
+              step={500}
+              value={editing?.unlockPriceMinor ?? editing?.priceMinor ?? null}
+              onChange={(v) => setEditing((s) => ({ ...s, unlockPriceMinor: v }))}
+              addonBefore={currencyCode(editing?.currency)}
+              placeholder={t('media.pricePlaceholder')}
+            />
+            <div className="faint" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.55 }}>
+              {editing?.priceDisplay
+                ? t('media.currentlyPriced', {
+                    price: formatDisplay(editing.priceDisplay, editing.currency, lang),
+                  })
+                : t('media.priceHint')}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

@@ -3,6 +3,7 @@ import { Alert, App, Button, Col, DatePicker, Form, Input, Popconfirm, Row, Tabl
 import { PlayCircleOutlined, StopOutlined, VideoCameraAddOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { liveApi } from '../../api';
+import ExtendLiveModal from '../../components/ExtendLiveModal';
 import { PageHeader, StatCard } from '../../components/ui';
 import { useT } from '../../i18n/useT';
 
@@ -16,6 +17,8 @@ export default function MyLive() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [acting, setActing] = useState(null);
+  const [allowance, setAllowance] = useState(null);
+  const [extending, setExtending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -68,6 +71,21 @@ export default function MyLive() {
 
   const liveNow = sessions.find((s) => s.status === 'LIVE');
 
+  // Refreshed on a timer only while on air: `remainingMinutes` counts the stream
+  // that is running, so off air it never moves and polling it would be noise.
+  useEffect(() => {
+    let stopped = false;
+    const read = () => liveApi.allowance().then((a) => !stopped && setAllowance(a)).catch(() => {});
+    read();
+    const id = liveNow ? setInterval(read, 60000) : null;
+    return () => {
+      stopped = true;
+      if (id) clearInterval(id);
+    };
+  }, [liveNow]);
+
+  const lowOnTime = allowance && liveNow && allowance.remainingMinutes <= 5;
+
   return (
     <div className="shell" style={{ paddingTop: 40, paddingBottom: 72 }}>
       <PageHeader
@@ -75,8 +93,32 @@ export default function MyLive() {
         subtitle={t('liveRoom.myRoomsSub')}
       />
 
+      {/* Loud, and only when it matters: being cut off mid-broadcast with an
+          audience watching is the thing this whole feature exists to prevent. */}
+      {lowOnTime && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 18 }}
+          message={t('live.runningOut')}
+          description={t('live.runningOutBody', { count: allowance.remainingMinutes })}
+          action={
+            <Button type="primary" onClick={() => setExtending(true)}>
+              {t('live.extendTitle')}
+            </Button>
+          }
+        />
+      )}
+
       <Row gutter={[18, 18]} style={{ marginBottom: 22 }}>
-        <Col xs={8}><StatCard label={t('liveRoom.status')} value={liveNow ? t('liveRoom.onAir') : t('liveRoom.offAir')} accent={liveNow ? 'var(--live)' : undefined} /></Col>
+        <Col xs={8}>
+          <StatCard
+            label={t('liveRoom.status')}
+            value={liveNow ? t('liveRoom.onAir') : t('liveRoom.offAir')}
+            accent={liveNow ? 'var(--live)' : undefined}
+            hint={allowance ? t('live.minutesLeft', { count: allowance.remainingMinutes }) : undefined}
+          />
+        </Col>
         <Col xs={8}><StatCard label={t('liveRoom.scheduled')} value={sessions.filter((s) => s.status === 'SCHEDULED').length} /></Col>
         <Col xs={8}><StatCard label={t('liveRoom.past')} value={sessions.filter((s) => s.status === 'ENDED').length} /></Col>
       </Row>
@@ -184,6 +226,13 @@ export default function MyLive() {
           </div>
         </Col>
       </Row>
+
+      <ExtendLiveModal
+        open={extending}
+        allowance={allowance}
+        onClose={() => setExtending(false)}
+        onExtended={() => liveApi.allowance().then(setAllowance).catch(() => {})}
+      />
     </div>
   );
 }

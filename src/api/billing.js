@@ -53,20 +53,30 @@ export const creatorPackages = () => http.get('/billing/creator-packages');
 /** The caller's package and remaining allowance. Creator accounts only. */
 export const myPackage = () => http.get('/billing/creator-packages/mine');
 
-export const buyCreatorPackage = (packageCode, payerMsisdn) =>
-  http.post('/billing/creator-packages', { packageCode, payerMsisdn });
+export const buyCreatorPackage = (packageCode, { method, payerMsisdn } = {}) =>
+  http.post('/billing/creator-packages', { packageCode, method, payerMsisdn });
 
 export const entitlements = () => http.get('/billing/entitlements');
+
+/**
+ * The ways this deployment can take money, as the picker should render them.
+ *
+ * Each entry is `{ code, label, description, requiresPayerMsisdn, isDefault,
+ * clientKey }`. Read `requiresPayerMsisdn` per method rather than assuming
+ * mobile money is the only one that needs a number — which method wants what
+ * moves when a provider is swapped, and the server is the one that knows.
+ */
+export const paymentMethods = () => http.get('/billing/payment-methods');
 
 export const purchases = () => http.get('/billing/purchases');
 
 /** Buy one photo or video, at the price its creator set on it. */
-export const unlockMedia = (mediaId, payerMsisdn) =>
-  http.post(`/billing/media/${mediaId}`, { payerMsisdn });
+export const unlockMedia = (mediaId, { method, payerMsisdn } = {}) =>
+  http.post(`/billing/media/${mediaId}`, { method, payerMsisdn });
 
 /** Buy entry to one live broadcast. */
-export const buyLiveAccess = (sessionId, payerMsisdn) =>
-  http.post(`/billing/live/${sessionId}`, { payerMsisdn });
+export const buyLiveAccess = (sessionId, { method, payerMsisdn } = {}) =>
+  http.post(`/billing/live/${sessionId}`, { method, payerMsisdn });
 
 /** True when a checkout response already represents a paid purchase. */
 export const isSettled = (checkout) =>
@@ -146,11 +156,11 @@ export const creditBalance = (ent) => ent?.creditBalanceMinor ?? 0;
 /* ── Mobile Money ──────────────────────────────────────────────── */
 
 /**
- * Whether checkout must collect a phone number before it can charge anything.
+ * Whether the *default* method needs a phone number.
  *
- * Read from the server rather than hardcoded: the provider is a deployment
- * choice, and a client that assumes mobile money would ask demo users for a
- * number nobody charges.
+ * Only right when the buyer has not chosen a method. Once a picker is on screen
+ * the answer is per method — read `requiresPayerMsisdn` off the selected entry
+ * from {@link paymentMethods} instead, or Stripe users get asked for a handset.
  */
 export const requiresPayerMsisdn = (ent) => Boolean(ent?.requiresPayerMsisdn);
 

@@ -14,9 +14,14 @@ import { http, pageQuery } from './http';
  * the profile without giving it away.
  */
 
-export async function list({ city, page = 0, size = 24, sort } = {}) {
+export async function list({ city, minAge, maxAge, page = 0, size = 24, sort } = {}) {
   const q = pageQuery({ page, size, sort });
   if (city) q.set('city', city);
+  // Sent only when set: an absent bound means "no limit at that end", which is
+  // not the same as sending the platform minimum and would quietly exclude
+  // nobody while still costing a query predicate.
+  if (minAge != null) q.set('minAge', String(minAge));
+  if (maxAge != null) q.set('maxAge', String(maxAge));
   const res = await http.get(`/members?${q}`);
   return {
     items: res.content ?? [],

@@ -8,6 +8,7 @@ import {
   PictureOutlined,
   UnlockOutlined,
   VideoCameraFilled,
+  WhatsAppOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { membersApi } from '../../api';
@@ -16,6 +17,7 @@ import { useAuth } from '../../store/auth';
 import CheckoutModal from '../../components/CheckoutModal';
 import MediaTile from '../../components/MediaTile';
 import SmartImage from '../../components/SmartImage';
+import VerifiedBadge from '../../components/VerifiedBadge';
 import { AuthedImage, AuthedVideo } from '../../components/AuthedFile';
 import { AccessGate, Blank, GridSkeleton } from '../../components/ui';
 import { formatDisplay } from '../../api/currency';
@@ -170,6 +172,7 @@ export default function MemberProfile() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                 <h1 className="serif" style={{ fontSize: 32, margin: 0, lineHeight: 1.1 }}>
                   {profile.displayName || profile.username}
+                  {profile.verified && <VerifiedBadge size={17} />}
                 </h1>
                 {liveNow && (
                   <span className="pill pill-live">
@@ -201,6 +204,22 @@ export default function MemberProfile() {
             <Tag style={{ borderRadius: 999, padding: '3px 12px', border: '1px solid var(--line)', background: 'transparent', color: 'var(--text-muted)' }}>
               {t(vibeKey(profile.vibe))}
             </Tag>
+          )}
+
+          {/* Only when she published one. `noreferrer` matters here: without it
+              wa.me is handed this profile's URL as the referrer. */}
+          {profile.whatsappNumber && (
+            <div style={{ marginTop: 16 }}>
+              <Button
+                size="large"
+                icon={<WhatsAppOutlined />}
+                href={whatsappLink(profile.whatsappNumber)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t('common.whatsapp')}
+              </Button>
+            </div>
           )}
 
           <Row gutter={[16, 16]} style={{ marginTop: 26, maxWidth: 560 }}>
@@ -427,4 +446,18 @@ export default function MemberProfile() {
       />
     </div>
   );
+}
+
+/**
+ * A wa.me link from a number as the member typed it.
+ *
+ * WhatsApp wants digits only — no plus, no spaces, no brackets — so the
+ * normalising happens here rather than on the way into the database. What
+ * someone entered is what they see in their own settings; rewriting it on save
+ * risks turning a number that works into one that does not, and leaves them
+ * unable to recognise their own.
+ */
+function whatsappLink(number) {
+  const digits = String(number ?? '').replace(/\D/g, '');
+  return `https://wa.me/${digits}`;
 }
