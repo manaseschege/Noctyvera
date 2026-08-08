@@ -529,6 +529,13 @@ export const en = {
     noMoneyTaken: 'No money was taken. You can try again.',
     phoneNote: 'Payment is confirmed on your phone. Nothing is charged until you approve it.',
 
+    cannotConfirm: 'We could not confirm this yet',
+    cannotConfirmBody: 'Your payment may well have gone through — we just could not check it from here. Do not pay again. Open Access & payments in a moment and it will show there.',
+    confirming: 'Confirming your payment',
+    confirmingBody: 'One moment — we are checking with the payment provider. Do not pay again.',
+    cardDoneBody: 'That is paid. Your access is open.',
+    cancelledTitle: 'Payment cancelled',
+    cancelledBody: 'Nothing was charged. You can try again whenever you like.',
     payWith: 'Pay with',
 
     /* Mobile Money */

@@ -7,6 +7,7 @@ import { CREATOR_PACKAGES } from '../../api/config';
 import { formatDisplay } from '../../api/currency';
 import MomoNumberField from '../../components/MomoNumberField';
 import PackagePicker from '../../components/PackagePicker';
+import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import { useAuth } from '../../store/auth';
 import OnboardingShell from './OnboardingShell';
 import { useI18n } from '../../i18n/useT';
@@ -36,9 +37,28 @@ export default function ChoosePackage() {
   const [failed, setFailed] = useState(null);
   const [msisdn, setMsisdn] = useState(billingApi.lastMsisdn);
   const [touched, setTouched] = useState(false);
+  const [methods, setMethods] = useState([]);
+  const [method, setMethod] = useState(null);
   const abortRef = useRef(null);
 
-  const needsMsisdn = billingApi.requiresPayerMsisdn(entitlements);
+  // Per chosen method, not per deployment: paying by card must not demand a
+  // handset just because mobile money is also on offer.
+  const selectedMethod = methods.find((m) => m.code === method);
+  const needsMsisdn = selectedMethod
+    ? selectedMethod.requiresPayerMsisdn
+    : billingApi.requiresPayerMsisdn(entitlements);
+
+  useEffect(() => {
+    billingApi
+      .paymentMethods()
+      .then((list) => {
+        setMethods(list ?? []);
+        setMethod((c) => c ?? list?.find((m) => m.isDefault)?.code ?? list?.[0]?.code ?? null);
+      })
+      // Losing the list is not a reason to block onboarding: leaving `method`
+      // null makes the server fall back to its own default.
+      .catch(() => setMethods([]));
+  }, []);
 
   useEffect(() => {
     billingApi
@@ -84,7 +104,10 @@ export default function ChoosePackage() {
 
     try {
       const number = needsMsisdn ? msisdn.trim() : undefined;
-      const res = await billingApi.buyCreatorPackage(choice, { payerMsisdn: number });
+      const res = await billingApi.buyCreatorPackage(choice, {
+        method: method ?? undefined,
+        payerMsisdn: number,
+      });
       setCheckout(res);
 
       if (res.action === 'REDIRECT' && res.redirectUrl) {
@@ -118,7 +141,7 @@ export default function ChoosePackage() {
       setBusy(false);
       setCheckout(null);
     }
-  }, [choice, loadPackage, message, msisdn, navigate, needsMsisdn, t]);
+  }, [choice, loadPackage, message, method, msisdn, navigate, needsMsisdn, t]);
 
   /* ── Waiting on an out-of-band payment ── */
   if (busy && checkout) {
@@ -175,8 +198,17 @@ export default function ChoosePackage() {
           />
 
           <div className="glass" style={{ padding: 22, marginTop: 22 }}>
+            <div style={{ marginTop: -18 }}>
+              <PaymentMethodPicker
+                methods={methods}
+                value={method}
+                onChange={setMethod}
+                disabled={busy}
+              />
+            </div>
+
             {needsMsisdn && (
-              <div style={{ marginTop: -4, marginBottom: 18 }}>
+              <div style={{ marginBottom: 18 }}>
                 <MomoNumberField
                   value={msisdn}
                   onChange={setMsisdn}

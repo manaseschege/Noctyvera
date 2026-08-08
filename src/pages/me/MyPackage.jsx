@@ -6,6 +6,7 @@ import { billingApi } from '../../api';
 import { formatDisplay } from '../../api/currency';
 import MomoNumberField from '../../components/MomoNumberField';
 import PackagePicker from '../../components/PackagePicker';
+import PaymentMethodPicker from '../../components/PaymentMethodPicker';
 import { PageHeader } from '../../components/ui';
 import { useAuth } from '../../store/auth';
 import { useI18n } from '../../i18n/useT';
@@ -30,13 +31,26 @@ export default function MyPackage() {
   const [checkout, setCheckout] = useState(null);
   const [msisdn, setMsisdn] = useState(billingApi.lastMsisdn);
   const [touched, setTouched] = useState(false);
+  const [methods, setMethods] = useState([]);
+  const [method, setMethod] = useState(null);
   const abortRef = useRef(null);
 
-  const needsMsisdn = billingApi.requiresPayerMsisdn(entitlements);
+  // Per chosen method, not per deployment — card must not ask for a handset.
+  const selectedMethod = methods.find((m) => m.code === method);
+  const needsMsisdn = selectedMethod
+    ? selectedMethod.requiresPayerMsisdn
+    : billingApi.requiresPayerMsisdn(entitlements);
 
   useEffect(() => {
     loadPackage();
     billingApi.creatorPackages().then(setPackages).catch((e) => message.error(e.message));
+    billingApi
+      .paymentMethods()
+      .then((list) => {
+        setMethods(list ?? []);
+        setMethod((c) => c ?? list?.find((m) => m.isDefault)?.code ?? list?.[0]?.code ?? null);
+      })
+      .catch(() => setMethods([]));
   }, [loadPackage, message]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
@@ -57,7 +71,10 @@ export default function MyPackage() {
 
     try {
       const number = needsMsisdn ? msisdn.trim() : undefined;
-      const res = await billingApi.buyCreatorPackage(choice, { payerMsisdn: number });
+      const res = await billingApi.buyCreatorPackage(choice, {
+        method: method ?? undefined,
+        payerMsisdn: number,
+      });
       setCheckout(res);
 
       if (res.action === 'REDIRECT' && res.redirectUrl) {
@@ -90,7 +107,7 @@ export default function MyPackage() {
       setBusy(false);
       setCheckout(null);
     }
-  }, [choice, loadPackage, message, msisdn, needsMsisdn, t]);
+  }, [choice, loadPackage, message, method, msisdn, needsMsisdn, t]);
 
   if (!packageStatus) {
     return (
@@ -174,6 +191,15 @@ export default function MyPackage() {
             currentCode={packageStatus.code}
             disabled={busy}
           />
+
+          <div style={{ maxWidth: 420 }}>
+            <PaymentMethodPicker
+              methods={methods}
+              value={method}
+              onChange={setMethod}
+              disabled={busy}
+            />
+          </div>
 
           {needsMsisdn && (
             <div style={{ maxWidth: 420 }}>

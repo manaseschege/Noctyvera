@@ -24,6 +24,7 @@ import Verify from './pages/onboarding/Verify';
 import OnboardingStatus from './pages/onboarding/Status';
 import ChoosePackage from './pages/onboarding/ChoosePackage';
 
+import CheckoutReturn from './pages/app/CheckoutReturn';
 import Discover from './pages/app/Discover';
 import MemberProfile from './pages/app/MemberProfile';
 import LiveDirectory from './pages/app/LiveDirectory';
@@ -60,6 +61,13 @@ export default function App() {
       <Routes>
         {/* ── Auth ──
             Signing in is two screens: password, then the emailed code. */}
+        {/* Where Stripe returns the payer. Outside every guard: the redirect
+            arrives from an external site, and bouncing someone who has just paid
+            to a login screen is how a completed payment looks like a lost one.
+            The page trusts the polled purchase, not the fact of arriving. */}
+        <Route path="/checkout/done" element={<CheckoutReturn outcome="done" />} />
+        <Route path="/checkout/cancelled" element={<CheckoutReturn outcome="cancelled" />} />
+
         <Route path="/login" element={<RedirectIfAuthed><Login /></RedirectIfAuthed>} />
         <Route path="/verify" element={<RedirectIfAuthed><VerifyCode /></RedirectIfAuthed>} />
         <Route path="/join" element={<RedirectIfAuthed><Register /></RedirectIfAuthed>} />

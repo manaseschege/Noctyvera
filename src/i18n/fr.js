@@ -529,6 +529,13 @@ export const fr = {
     noMoneyTaken: 'Aucun montant n’a été prélevé. Vous pouvez réessayer.',
     phoneNote: 'Le paiement est confirmé sur votre téléphone. Rien n’est prélevé avant votre validation.',
 
+    cannotConfirm: 'Nous ne pouvons pas encore confirmer',
+    cannotConfirmBody: 'Votre paiement est peut-être bien passé — nous n’avons simplement pas pu le vérifier ici. Ne payez pas une seconde fois. Ouvrez « Accès et paiements » dans un instant, il y apparaîtra.',
+    confirming: 'Confirmation de votre paiement',
+    confirmingBody: 'Un instant — nous vérifions auprès du prestataire. Ne payez pas une seconde fois.',
+    cardDoneBody: 'C’est payé. Votre accès est ouvert.',
+    cancelledTitle: 'Paiement annulé',
+    cancelledBody: 'Rien n’a été débité. Vous pouvez réessayer quand vous voulez.',
     payWith: 'Payer avec',
 
     /* Mobile Money */
